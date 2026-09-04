@@ -1,0 +1,483 @@
+{
+  "id": "earthquake",
+  "titleKey": "quest.title",
+  "decisionSeconds": 12,
+  "rooms": [
+    {
+      "id": "apartment",
+      "icon": "apartment",
+      "background": "/assets/quest/apartment.jpg",
+      "titleKey": "quest.room.apartment.title",
+      "situationKey": "quest.room.apartment.situation",
+      "eventKey": "quest.room.apartment.event",
+      "questionKey": "quest.room.apartment.question",
+      "options": [
+        {
+          "id": "cover",
+          "labelKey": "quest.room.apartment.option.cover.label",
+          "explanationKey": "quest.room.apartment.option.cover.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.apartment.option.cover.short",
+          "hotspot": {
+            "x": 40,
+            "y": 80
+          }
+        },
+        {
+          "id": "run_out",
+          "labelKey": "quest.room.apartment.option.run_out.label",
+          "explanationKey": "quest.room.apartment.option.run_out.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.apartment.option.run_out.short",
+          "hotspot": {
+            "x": 72,
+            "y": 45
+          }
+        }
+      ],
+      "outcomes": {
+        "cover": {
+          "image": "/assets/quest/outcome/apartment-cover.jpg",
+          "textKey": "quest.room.apartment.outcome.cover",
+          "video": "/assets/quest/video/apartment-cover.mp4"
+        },
+        "run_out": {
+          "image": "/assets/quest/outcome/apartment-run_out.jpg",
+          "textKey": "quest.room.apartment.outcome.run_out"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-elevator.jpg",
+        "textKey": "quest.room.apartment.bridge",
+        "video": "/assets/quest/video/apartment-exit.mp4"
+      },
+      "intro": {
+        "video": "/assets/quest/video/apartment-intro.mp4"
+      }
+    },
+    {
+      "id": "elevator",
+      "icon": "elevator",
+      "background": "/assets/quest/elevator.jpg",
+      "titleKey": "quest.room.elevator.title",
+      "situationKey": "quest.room.elevator.situation",
+      "eventKey": "quest.room.elevator.event",
+      "questionKey": "quest.room.elevator.question",
+      "options": [
+        {
+          "id": "all_floors",
+          "labelKey": "quest.room.elevator.option.all_floors.label",
+          "explanationKey": "quest.room.elevator.option.all_floors.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.elevator.option.all_floors.short",
+          "hotspot": {
+            "x": 94,
+            "y": 38
+          }
+        },
+        {
+          "id": "force_doors",
+          "labelKey": "quest.room.elevator.option.force_doors.label",
+          "explanationKey": "quest.room.elevator.option.force_doors.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.elevator.option.force_doors.short",
+          "hotspot": {
+            "x": 50,
+            "y": 55
+          }
+        }
+      ],
+      "outcomes": {
+        "all_floors": {
+          "image": "/assets/quest/outcome/elevator-all_floors.jpg",
+          "textKey": "quest.room.elevator.outcome.all_floors",
+          "voice": "/audio/quest/dispatcher",
+          "video": "/assets/quest/video/elevator-all_floors.mp4"
+        },
+        "force_doors": {
+          "image": "/assets/quest/outcome/elevator-force_doors.jpg",
+          "textKey": "quest.room.elevator.outcome.force_doors"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-school.jpg",
+        "textKey": "quest.room.elevator.bridge"
+      }
+    },
+    {
+      "id": "school",
+      "icon": "school",
+      "background": "/assets/quest/school.jpg",
+      "titleKey": "quest.room.school.title",
+      "situationKey": "quest.room.school.situation",
+      "eventKey": "quest.room.school.event",
+      "questionKey": "quest.room.school.question",
+      "options": [
+        {
+          "id": "under_desk",
+          "labelKey": "quest.room.school.option.under_desk.label",
+          "explanationKey": "quest.room.school.option.under_desk.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.school.option.under_desk.short",
+          "hotspot": {
+            "x": 45,
+            "y": 72
+          }
+        },
+        {
+          "id": "run_corridor",
+          "labelKey": "quest.room.school.option.run_corridor.label",
+          "explanationKey": "quest.room.school.option.run_corridor.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.school.option.run_corridor.short",
+          "hotspot": {
+            "x": 93,
+            "y": 52
+          }
+        }
+      ],
+      "outcomes": {
+        "under_desk": {
+          "image": "/assets/quest/outcome/school-under_desk.jpg",
+          "textKey": "quest.room.school.outcome.under_desk",
+          "video": "/assets/quest/video/school-under_desk.mp4"
+        },
+        "run_corridor": {
+          "image": "/assets/quest/outcome/school-run_corridor.jpg",
+          "textKey": "quest.room.school.outcome.run_corridor"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-mall.jpg",
+        "textKey": "quest.room.school.bridge"
+      }
+    },
+    {
+      "id": "mall",
+      "icon": "mall",
+      "background": "/assets/quest/mall.jpg",
+      "titleKey": "quest.room.mall.title",
+      "situationKey": "quest.room.mall.situation",
+      "eventKey": "quest.room.mall.event",
+      "questionKey": "quest.room.mall.question",
+      "options": [
+        {
+          "id": "column_cover",
+          "labelKey": "quest.room.mall.option.column_cover.label",
+          "explanationKey": "quest.room.mall.option.column_cover.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.mall.option.column_cover.short",
+          "hotspot": {
+            "x": 68,
+            "y": 45
+          }
+        },
+        {
+          "id": "follow_crowd",
+          "labelKey": "quest.room.mall.option.follow_crowd.label",
+          "explanationKey": "quest.room.mall.option.follow_crowd.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.mall.option.follow_crowd.short",
+          "hotspot": {
+            "x": 91,
+            "y": 62
+          }
+        }
+      ],
+      "outcomes": {
+        "column_cover": {
+          "image": "/assets/quest/outcome/mall-column_cover.jpg",
+          "textKey": "quest.room.mall.outcome.column_cover",
+          "video": "/assets/quest/video/mall-column_cover.mp4"
+        },
+        "follow_crowd": {
+          "image": "/assets/quest/outcome/mall-follow_crowd.jpg",
+          "textKey": "quest.room.mall.outcome.follow_crowd"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-street.jpg",
+        "textKey": "quest.room.mall.bridge"
+      }
+    },
+    {
+      "id": "street",
+      "icon": "street",
+      "background": "/assets/quest/street.jpg",
+      "titleKey": "quest.room.street.title",
+      "situationKey": "quest.room.street.situation",
+      "eventKey": "quest.room.street.event",
+      "questionKey": "quest.room.street.question",
+      "options": [
+        {
+          "id": "open_space",
+          "labelKey": "quest.room.street.option.open_space.label",
+          "explanationKey": "quest.room.street.option.open_space.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.street.option.open_space.short",
+          "hotspot": {
+            "x": 78,
+            "y": 72
+          }
+        },
+        {
+          "id": "enter_building",
+          "labelKey": "quest.room.street.option.enter_building.label",
+          "explanationKey": "quest.room.street.option.enter_building.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.street.option.enter_building.short",
+          "hotspot": {
+            "x": 30,
+            "y": 58
+          }
+        }
+      ],
+      "outcomes": {
+        "open_space": {
+          "image": "/assets/quest/outcome/street-open_space.jpg",
+          "textKey": "quest.room.street.outcome.open_space",
+          "video": "/assets/quest/video/street-open_space.mp4"
+        },
+        "enter_building": {
+          "image": "/assets/quest/outcome/street-enter_building.jpg",
+          "textKey": "quest.room.street.outcome.enter_building"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-car.jpg",
+        "textKey": "quest.room.street.bridge"
+      }
+    },
+    {
+      "id": "car",
+      "icon": "car",
+      "background": "/assets/quest/car.jpg",
+      "titleKey": "quest.room.car.title",
+      "situationKey": "quest.room.car.situation",
+      "eventKey": "quest.room.car.event",
+      "questionKey": "quest.room.car.question",
+      "options": [
+        {
+          "id": "stop_open",
+          "labelKey": "quest.room.car.option.stop_open.label",
+          "explanationKey": "quest.room.car.option.stop_open.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.car.option.stop_open.short",
+          "hotspot": {
+            "x": 33,
+            "y": 60
+          }
+        },
+        {
+          "id": "jump_out",
+          "labelKey": "quest.room.car.option.jump_out.label",
+          "explanationKey": "quest.room.car.option.jump_out.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.car.option.jump_out.short",
+          "hotspot": {
+            "x": 12,
+            "y": 57
+          }
+        }
+      ],
+      "outcomes": {
+        "stop_open": {
+          "image": "/assets/quest/outcome/car-stop_open.jpg",
+          "textKey": "quest.room.car.outcome.stop_open"
+        },
+        "jump_out": {
+          "image": "/assets/quest/outcome/car-jump_out.jpg",
+          "textKey": "quest.room.car.outcome.jump_out"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-night.jpg",
+        "textKey": "quest.room.car.bridge"
+      }
+    },
+    {
+      "id": "night",
+      "icon": "night",
+      "background": "/assets/quest/night.jpg",
+      "titleKey": "quest.room.night.title",
+      "situationKey": "quest.room.night.situation",
+      "eventKey": "quest.room.night.event",
+      "questionKey": "quest.room.night.question",
+      "options": [
+        {
+          "id": "stay_bed",
+          "labelKey": "quest.room.night.option.stay_bed.label",
+          "explanationKey": "quest.room.night.option.stay_bed.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.night.option.stay_bed.short",
+          "hotspot": {
+            "x": 48,
+            "y": 53
+          }
+        },
+        {
+          "id": "run_dark",
+          "labelKey": "quest.room.night.option.run_dark.label",
+          "explanationKey": "quest.room.night.option.run_dark.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.night.option.run_dark.short",
+          "hotspot": {
+            "x": 72,
+            "y": 40
+          }
+        }
+      ],
+      "outcomes": {
+        "stay_bed": {
+          "image": "/assets/quest/outcome/night-stay_bed.jpg",
+          "textKey": "quest.room.night.outcome.stay_bed"
+        },
+        "run_dark": {
+          "image": "/assets/quest/outcome/night-run_dark.jpg",
+          "textKey": "quest.room.night.outcome.run_dark"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-aftershock.jpg",
+        "textKey": "quest.room.night.bridge"
+      }
+    },
+    {
+      "id": "aftershock",
+      "icon": "gas",
+      "background": "/assets/quest/aftershock.jpg",
+      "titleKey": "quest.room.aftershock.title",
+      "situationKey": "quest.room.aftershock.situation",
+      "eventKey": "quest.room.aftershock.event",
+      "questionKey": "quest.room.aftershock.question",
+      "options": [
+        {
+          "id": "gas_off",
+          "labelKey": "quest.room.aftershock.option.gas_off.label",
+          "explanationKey": "quest.room.aftershock.option.gas_off.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.aftershock.option.gas_off.short",
+          "hotspot": {
+            "x": 27,
+            "y": 49
+          }
+        },
+        {
+          "id": "light_match",
+          "labelKey": "quest.room.aftershock.option.light_match.label",
+          "explanationKey": "quest.room.aftershock.option.light_match.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.aftershock.option.light_match.short",
+          "hotspot": {
+            "x": 78,
+            "y": 52
+          }
+        }
+      ],
+      "outcomes": {
+        "gas_off": {
+          "image": "/assets/quest/outcome/aftershock-gas_off.jpg",
+          "textKey": "quest.room.aftershock.outcome.gas_off"
+        },
+        "light_match": {
+          "image": "/assets/quest/outcome/aftershock-light_match.jpg",
+          "textKey": "quest.room.aftershock.outcome.light_match"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-help.jpg",
+        "textKey": "quest.room.aftershock.bridge"
+      }
+    },
+    {
+      "id": "help",
+      "icon": "help",
+      "background": "/assets/quest/help.jpg",
+      "titleKey": "quest.room.help.title",
+      "situationKey": "quest.room.help.situation",
+      "eventKey": "quest.room.help.event",
+      "questionKey": "quest.room.help.question",
+      "options": [
+        {
+          "id": "calm_guide",
+          "labelKey": "quest.room.help.option.calm_guide.label",
+          "explanationKey": "quest.room.help.option.calm_guide.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.help.option.calm_guide.short",
+          "hotspot": {
+            "x": 55,
+            "y": 63
+          }
+        },
+        {
+          "id": "drag_run",
+          "labelKey": "quest.room.help.option.drag_run.label",
+          "explanationKey": "quest.room.help.option.drag_run.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.help.option.drag_run.short",
+          "hotspot": {
+            "x": 88,
+            "y": 65
+          }
+        }
+      ],
+      "outcomes": {
+        "calm_guide": {
+          "image": "/assets/quest/outcome/help-calm_guide.jpg",
+          "textKey": "quest.room.help.outcome.calm_guide"
+        },
+        "drag_run": {
+          "image": "/assets/quest/outcome/help-drag_run.jpg",
+          "textKey": "quest.room.help.outcome.drag_run"
+        }
+      },
+      "bridge": {
+        "image": "/assets/quest/bridge/to-evacuation.jpg",
+        "textKey": "quest.room.help.bridge"
+      }
+    },
+    {
+      "id": "evacuation",
+      "icon": "evacuation",
+      "background": "/assets/quest/evacuation.jpg",
+      "titleKey": "quest.room.evacuation.title",
+      "situationKey": "quest.room.evacuation.situation",
+      "eventKey": "quest.room.evacuation.event",
+      "questionKey": "quest.room.evacuation.question",
+      "options": [
+        {
+          "id": "stairs_assembly",
+          "labelKey": "quest.room.evacuation.option.stairs_assembly.label",
+          "explanationKey": "quest.room.evacuation.option.stairs_assembly.explanation",
+          "correct": true,
+          "shortLabelKey": "quest.room.evacuation.option.stairs_assembly.short",
+          "hotspot": {
+            "x": 33,
+            "y": 62
+          }
+        },
+        {
+          "id": "elevator_back",
+          "labelKey": "quest.room.evacuation.option.elevator_back.label",
+          "explanationKey": "quest.room.evacuation.option.elevator_back.explanation",
+          "correct": false,
+          "shortLabelKey": "quest.room.evacuation.option.elevator_back.short",
+          "hotspot": {
+            "x": 88,
+            "y": 45
+          }
+        }
+      ],
+      "outcomes": {
+        "stairs_assembly": {
+          "image": "/assets/quest/outcome/evacuation-stairs_assembly.jpg",
+          "textKey": "quest.room.evacuation.outcome.stairs_assembly"
+        },
+        "elevator_back": {
+          "image": "/assets/quest/outcome/evacuation-elevator_back.jpg",
+          "textKey": "quest.room.evacuation.outcome.elevator_back"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,182 @@
+{
+  "rules": [
+    {
+      "id": "followed_teacher",
+      "category": "reaction",
+      "kind": "good",
+      "event": "followed_teacher_instruction",
+      "messageKey": "debrief.rule.followedTeacher"
+    },
+    {
+      "id": "assessed_environment",
+      "category": "reaction",
+      "kind": "good",
+      "event": "assessed_environment",
+      "messageKey": "debrief.rule.assessed"
+    },
+    {
+      "id": "returned_for_belongings",
+      "category": "reaction",
+      "kind": "risk",
+      "event": "returned_for_belongings",
+      "messageKey": "debrief.rule.backpack",
+      "lessonKey": "debrief.lesson.backpack"
+    },
+    {
+      "id": "backpack_temptation",
+      "category": "reaction",
+      "kind": "risk",
+      "event": "backpack_note",
+      "messageKey": "debrief.rule.backpack",
+      "lessonKey": "debrief.lesson.backpack"
+    },
+    {
+      "id": "rushed_without_assessing",
+      "category": "reaction",
+      "kind": "risk",
+      "event": "rushed_without_assessing",
+      "messageKey": "debrief.rule.rushed",
+      "lessonKey": "debrief.lesson.rushed"
+    },
+    {
+      "id": "assessed_corridor",
+      "category": "reaction",
+      "kind": "good",
+      "event": "assessed_corridor",
+      "messageKey": "debrief.rule.assessedCorridor"
+    },
+    {
+      "id": "followed_crowd_without_checking",
+      "category": "reaction",
+      "kind": "risk",
+      "event": "followed_crowd_without_checking",
+      "messageKey": "debrief.rule.followedCrowd",
+      "lessonKey": "debrief.lesson.followedCrowd"
+    },
+    {
+      "id": "evacuation_plan_checked",
+      "category": "route",
+      "kind": "good",
+      "event": "evacuation_plan_checked",
+      "messageKey": "debrief.rule.planChecked"
+    },
+    {
+      "id": "safe_exit_sign_detected",
+      "category": "route",
+      "kind": "good",
+      "event": "safe_exit_sign_detected",
+      "messageKey": "debrief.rule.signDetected"
+    },
+    {
+      "id": "teacher_instruction_followed",
+      "category": "route",
+      "kind": "good",
+      "event": "teacher_instruction_followed",
+      "messageKey": "debrief.rule.teacherInstruction"
+    },
+    {
+      "id": "smoke_noticed_from_distance",
+      "category": "reaction",
+      "kind": "good",
+      "event": "smoke_noticed_from_distance",
+      "messageKey": "debrief.rule.smokeNoticedFar"
+    },
+    {
+      "id": "crowd_following_route",
+      "category": "route",
+      "kind": "risk",
+      "event": "crowd_following_route",
+      "messageKey": "debrief.rule.crowdReliance",
+      "lessonKey": "debrief.lesson.crowdReliance"
+    },
+    {
+      "id": "teacher_intervened",
+      "category": "route",
+      "kind": "risk",
+      "event": "teacher_intervened",
+      "messageKey": "debrief.rule.teacherIntervened",
+      "lessonKey": "debrief.lesson.teacherIntervened"
+    },
+    {
+      "id": "changed_route_after_smoke",
+      "category": "route",
+      "kind": "good",
+      "event": "changed_route_after_smoke",
+      "messageKey": "debrief.rule.changedRoute"
+    },
+    {
+      "id": "used_emergency_exit",
+      "category": "route",
+      "kind": "good",
+      "event": "used_emergency_exit",
+      "messageKey": "debrief.rule.avoidedSmoke"
+    },
+    {
+      "id": "lingered_in_smoke",
+      "category": "route",
+      "kind": "risk",
+      "event": "route_blocked",
+      "messageKey": "debrief.rule.lingeredSmoke",
+      "lessonKey": "debrief.lesson.lingeredSmoke"
+    },
+    {
+      "id": "pushed_through_crowd",
+      "category": "route",
+      "kind": "risk",
+      "event": "pushed_through_crowd",
+      "messageKey": "debrief.rule.pushedCrowd",
+      "lessonKey": "debrief.lesson.pushedCrowd"
+    },
+    {
+      "id": "took_calm_lane",
+      "category": "route",
+      "kind": "good",
+      "event": "took_calm_lane",
+      "messageKey": "debrief.rule.calmLane"
+    },
+    {
+      "id": "stairs_flow_used",
+      "category": "route",
+      "kind": "good",
+      "event": "stairs_flow_used",
+      "messageKey": "debrief.rule.stairsFlow"
+    },
+    {
+      "id": "student_referred_to_teacher",
+      "category": "completion",
+      "kind": "good",
+      "event": "student_referred_to_teacher",
+      "messageKey": "debrief.rule.studentReferred"
+    },
+    {
+      "id": "companion_safe",
+      "category": "completion",
+      "kind": "good",
+      "event": "companion_safe",
+      "messageKey": "debrief.rule.helpedCompanion"
+    },
+    {
+      "id": "reported_to_teacher",
+      "category": "completion",
+      "kind": "good",
+      "event": "reported_to_teacher",
+      "messageKey": "debrief.rule.reported"
+    },
+    {
+      "id": "attempted_reentry",
+      "category": "completion",
+      "kind": "risk",
+      "event": "attempted_reentry",
+      "messageKey": "debrief.rule.attemptedReentry",
+      "lessonKey": "debrief.lesson.attemptedReentry"
+    },
+    {
+      "id": "time_up",
+      "category": "completion",
+      "kind": "risk",
+      "event": "time_up",
+      "messageKey": "debrief.rule.timeout",
+      "lessonKey": "debrief.lesson.timeout"
+    }
+  ]
+}

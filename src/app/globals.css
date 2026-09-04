@@ -1,0 +1,164 @@
+@import "tailwindcss";
+
+@theme {
+  /* Тёмно-синяя система интерфейса SAQ */
+  --color-navy-950: #060d1c;
+  --color-navy-900: #0a1526;
+  --color-navy-800: #102039;
+  --color-navy-700: #17294a;
+  --color-navy-600: #1f3560;
+  /* Семантика: красный — опасность, зелёный — безопасный выход */
+  --color-danger: #d83a3a;
+  --color-safe: #2fae5f;
+
+  /* Светлая «детская» палитра главной страницы: тёплый фон, мягкие чернила
+     и два цвета-маркера сценариев — землетрясение (бирюза) и пожар (пламя). */
+  --color-cream-50: #fffaf2;
+  --color-cream-100: #fff3e2;
+  --color-cream-200: #f7e7d3;
+  --color-ink-900: #23252d;
+  --color-ink-600: #5d6270;
+  --color-quake-100: #dff3f4;
+  --color-quake-500: #199aa6;
+  --color-quake-700: #0e6f79;
+  --color-flame-100: #ffe6d8;
+  --color-flame-500: #f2622c;
+  --color-flame-700: #c2431a;
+  --color-sun-400: #ffc043;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-navy-950);
+  color: #eef2f8;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Тряска сцены квеста «Землетрясение»: фон дрожит, пока идёт толчок.
+   Масштаб 1.06 скрывает края кадра во время смещения. */
+@keyframes quake {
+  0%,
+  100% {
+    transform: scale(1.06) translate3d(0, 0, 0) rotate(0deg);
+  }
+  15% {
+    transform: scale(1.06) translate3d(-6px, 3px, 0) rotate(-0.25deg);
+  }
+  30% {
+    transform: scale(1.06) translate3d(5px, -4px, 0) rotate(0.2deg);
+  }
+  45% {
+    transform: scale(1.06) translate3d(-4px, -2px, 0) rotate(0.15deg);
+  }
+  60% {
+    transform: scale(1.06) translate3d(6px, 2px, 0) rotate(-0.2deg);
+  }
+  80% {
+    transform: scale(1.06) translate3d(-3px, 4px, 0) rotate(0.1deg);
+  }
+}
+
+.quest-quake {
+  animation: quake 0.5s linear infinite;
+}
+
+/* После выбора толчок «затихает»: тот же трек, но медленнее и слабее. */
+.quest-quake-calm {
+  animation: quake 1.6s ease-in-out infinite;
+}
+
+@keyframes hotspot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgb(255 255 255 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(255 255 255 / 0);
+  }
+}
+
+.quest-hotspot-pulse {
+  animation: hotspot-pulse 1.8s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-quake,
+  .quest-quake-calm,
+  .quest-hotspot-pulse {
+    animation: none;
+  }
+}
+
+/* Наезд камеры на кадр-последствие: «камера уходит туда, куда вы себя
+   отправили». Начинается крупнее и успокаивается до кадра. */
+@keyframes camera-in {
+  from {
+    transform: scale(1.2) translate3d(0, 2.5%, 0);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.02) translate3d(0, 0, 0);
+    opacity: 1;
+  }
+}
+
+.quest-camera-in {
+  animation: camera-in 1.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Переход между комнатами: спокойный медленный отъезд. */
+@keyframes camera-drift {
+  from {
+    transform: scale(1.1) translate3d(1.5%, 0, 0);
+  }
+  to {
+    transform: scale(1.02) translate3d(-1.5%, 0, 0);
+  }
+}
+
+.quest-camera-drift {
+  animation: camera-drift 9s ease-in-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-camera-in,
+  .quest-camera-drift {
+    animation: none;
+  }
+}
+
+/* Главная страница: мягкое «дыхание» карточек-сценариев. Медленное и
+   маленькое — оживляет страницу для детей, но не отвлекает от текста. */
+@keyframes home-bob {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+.home-bob {
+  animation: home-bob 4.5s ease-in-out infinite;
+}
+
+.home-bob-delayed {
+  animation: home-bob 4.5s ease-in-out 0.9s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-bob,
+  .home-bob-delayed {
+    animation: none;
+  }
+}

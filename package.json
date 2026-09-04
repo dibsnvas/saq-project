@@ -1,0 +1,38 @@
+{
+  "name": "saq-180-seconds",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "check:locales": "node scripts/check-locales.mjs",
+    "sync:assets": "python scripts/sync-assets.py",
+    "audit:assets": "node scripts/audit-assets.mjs",
+    "test": "vitest run",
+    "verify": "npm run check:locales && npm run audit:assets && npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "next-intl": "^4.3.0",
+    "phaser": "3.90.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.0",
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.30.0",
+    "eslint-config-next": "^15.5.0",
+    "playwright": "^1.53.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.4"
+  }
+}
