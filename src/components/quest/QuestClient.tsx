@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import questRaw from "@/content/earthquake/quest.json";
 import { correctOptionOf, parseQuest, type QuestOption } from "@/quest/schema";
@@ -27,6 +27,8 @@ import { RoomIcon } from "./RoomIcon";
 // Валидируем данные на входе: битый quest.json падает громко и сразу.
 const QUEST = parseQuest(questRaw);
 const TICK_MS = 100;
+/** Сейчас студийные MP3 сцен записаны только для русской локали. */
+const RECORDED_NARRATION_LOCALES = new Set(["ru"]);
 
 const GRADE_STYLE: Record<QuestGrade, string> = {
   strong: "text-safe",
@@ -40,6 +42,7 @@ type Phase = "room" | "result";
  * Вступительный клип есть не у всех комнат, поэтому такт стартовый вычисляется.
  */
 type Beat = "intro" | "scene" | "outcome" | "bridge";
+type NarrationStatus = "loading" | "playing" | "blocked" | "done";
 
 const telemetry = new LocalStorageTelemetryRepository();
 
@@ -63,6 +66,16 @@ export function QuestClient() {
   const [durationMs, setDurationMs] = useState(0);
   const startedAt = useRef(0);
 
+  const locale = useLocale();
+  const narrationRef = useRef<HTMLAudioElement | null>(null);
+  const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  /** Статус привязан к комнате, чтобы новая сцена ни на один кадр не получила
+   *  активный таймер от предыдущей. */
+  const [narration, setNarration] = useState<{
+    roomId: string;
+    status: NarrationStatus;
+  }>({ roomId: "", status: "loading" });
+
   // Квест начинается сразу при открытии страницы: засекаем время здесь,
   // а не по кнопке заставки.
   useEffect(() => {
@@ -71,6 +84,14 @@ export function QuestClient() {
 
   const room = QUEST.rooms[index];
   const isLast = index === QUEST.rooms.length - 1;
+  const narrationStatus: NarrationStatus = !room.voice
+    ? "done"
+    : narration.roomId === room.id
+      ? narration.status
+      : "loading";
+  const narrationDone = narrationStatus === "done";
+  const narrationFailed = narrationStatus === "blocked";
+  const questionText = t(room.questionKey);
   const summary = useMemo(() => summarizeQuest(QUEST, answers), [answers]);
   const correctOption = useMemo(() => correctOptionOf(room), [room]);
 
@@ -94,6 +115,117 @@ export function QuestClient() {
     setSecondsLeft(QUEST.decisionSeconds);
     setAnswers([]);
   }, []);
+
+  // Сначала звучит реплика сцены с вопросом, и только затем открываются выбор
+  // и таймер. При запрете autoplay ждём явного клика, не съедая время игрока.
+  useEffect(() => {
+    if (phase !== "room" || beat !== "scene" || !room.voice) return;
+
+    let active = true;
+    setNarration({ roomId: room.id, status: "loading" });
+
+    // Не запрашиваем отсутствующий <room>.kk.mp3. Для этой локали кнопка
+    // запускает системный синтез речи с локализованным текстом вопроса.
+    if (!RECORDED_NARRATION_LOCALES.has(locale)) {
+      setNarration({ roomId: room.id, status: "blocked" });
+      return () => {
+        active = false;
+        if (speechRef.current) {
+          window.speechSynthesis.cancel();
+          speechRef.current = null;
+        }
+      };
+    }
+
+    const audio = new Audio(`${room.voice}.${locale}.mp3`);
+    audio.volume = 0.95;
+    audio.preload = "auto";
+    narrationRef.current = audio;
+
+    const setStatus = (status: NarrationStatus) => {
+      if (active) setNarration({ roomId: room.id, status });
+    };
+    const finish = () => setStatus("done");
+    const fail = () => setStatus("blocked");
+    audio.addEventListener("ended", finish);
+    audio.addEventListener("error", fail);
+    setStatus("playing");
+    void audio.play().catch(fail);
+
+    return () => {
+      active = false;
+      audio.removeEventListener("ended", finish);
+      audio.removeEventListener("error", fail);
+      audio.pause();
+      if (narrationRef.current === audio) narrationRef.current = null;
+    };
+  }, [phase, beat, room.id, room.voice, locale]);
+
+  const replayNarration = useCallback(() => {
+    if (!RECORDED_NARRATION_LOCALES.has(locale)) {
+      if (
+        !("speechSynthesis" in window) ||
+        typeof SpeechSynthesisUtterance === "undefined"
+      ) {
+        setNarration({ roomId: room.id, status: "blocked" });
+        return;
+      }
+
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(questionText);
+      utterance.lang = locale === "kk" ? "kk-KZ" : locale;
+      utterance.rate = 0.95;
+      utterance.onend = () => {
+        if (speechRef.current !== utterance) return;
+        speechRef.current = null;
+        setNarration({ roomId: room.id, status: "done" });
+      };
+      utterance.onerror = () => {
+        if (speechRef.current !== utterance) return;
+        speechRef.current = null;
+        setNarration({ roomId: room.id, status: "blocked" });
+      };
+      speechRef.current = utterance;
+      setNarration({ roomId: room.id, status: "playing" });
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
+    const existing = narrationRef.current;
+    if (existing) {
+      existing.currentTime = 0;
+      setNarration({ roomId: room.id, status: "playing" });
+      void existing.play().catch(() =>
+        setNarration({ roomId: room.id, status: "blocked" }),
+      );
+      return;
+    }
+    if (!room.voice) return;
+    // Первый запуск заблокировал браузер: клик — это жест пользователя.
+    const audio = new Audio(`${room.voice}.${locale}.mp3`);
+    audio.volume = 0.95;
+    narrationRef.current = audio;
+    const finish = () =>
+      setNarration({ roomId: room.id, status: "done" });
+    const fail = () =>
+      setNarration({ roomId: room.id, status: "blocked" });
+    audio.addEventListener("ended", finish, { once: true });
+    audio.addEventListener("error", fail, { once: true });
+    setNarration({ roomId: room.id, status: "playing" });
+    void audio.play().then(
+      () => undefined,
+      fail,
+    );
+  }, [room.id, room.voice, locale, questionText]);
+
+  const startWithoutNarration = useCallback(() => {
+    narrationRef.current?.pause();
+    if (speechRef.current) {
+      window.speechSynthesis.cancel();
+      speechRef.current = null;
+    }
+    setNarration({ roomId: room.id, status: "done" });
+  }, [room.id]);
 
   const answer = useCallback(
     (option: QuestOption | null) => {
@@ -135,7 +267,8 @@ export function QuestClient() {
 
   // Часы на решение: тикают только пока комната открыта и ответа нет.
   useEffect(() => {
-    if (phase !== "room" || outcome || beat !== "scene") return;
+    if (phase !== "room" || outcome || beat !== "scene" || !narrationDone)
+      return;
     const timer = window.setInterval(() => {
       setSecondsLeft((left) => {
         const next = left - TICK_MS / 1000;
@@ -145,7 +278,7 @@ export function QuestClient() {
       });
     }, TICK_MS);
     return () => window.clearInterval(timer);
-  }, [phase, outcome, beat, index]);
+  }, [phase, outcome, beat, index, narrationDone]);
 
   // Время вышло — комната закрывается как ошибка, показывается верный ответ.
   useEffect(() => {
@@ -192,7 +325,12 @@ export function QuestClient() {
   useEffect(() => {
     if (phase !== "room") return;
     const onKey = (e: KeyboardEvent) => {
-      if (!outcome && beat === "scene" && (e.key === "1" || e.key === "2")) {
+      if (
+        !outcome &&
+        beat === "scene" &&
+        narrationDone &&
+        (e.key === "1" || e.key === "2")
+      ) {
         e.preventDefault();
         answer(room.options[Number(e.key) - 1]);
         return;
@@ -204,7 +342,7 @@ export function QuestClient() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, beat, outcome, answer, next, room]);
+  }, [phase, beat, outcome, answer, next, room, narrationDone]);
 
   if (phase === "result") {
     return (
@@ -300,7 +438,8 @@ export function QuestClient() {
     0,
     Math.min(1, secondsLeft / QUEST.decisionSeconds),
   );
-  const urgent = beat === "scene" && !outcome && secondsLeft <= 4;
+  const urgent =
+    beat === "scene" && narrationDone && !outcome && secondsLeft <= 4;
 
   return (
     // Полноэкранная раскладка: кадр занимает весь экран, интерфейс лежит
@@ -335,11 +474,17 @@ export function QuestClient() {
         <QuestScene
           room={room}
           outcome={outcome}
+          interactionsEnabled={narrationDone}
           onChoose={(option) => answer(option)}
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center p-4">
-          <FallbackChoices room={room} outcome={outcome} onChoose={answer} />
+          <FallbackChoices
+            room={room}
+            outcome={outcome}
+            interactionsEnabled={narrationDone}
+            onChoose={answer}
+          />
         </div>
       )}
 
@@ -383,7 +528,7 @@ export function QuestClient() {
           </div>
 
           <div className="flex items-center gap-2">
-            {beat === "scene" && (
+            {beat === "scene" && narrationDone && (
               <span
                 className={`rounded-md px-2 py-1 font-mono text-xs font-bold tabular-nums ${
                   urgent ? "bg-danger text-white" : "bg-black/60 text-white/85"
@@ -391,6 +536,20 @@ export function QuestClient() {
               >
                 {t("quest.secondsLeft", { seconds: Math.ceil(secondsLeft) })}
               </span>
+            )}
+            {beat === "scene" && !narrationDone && !narrationFailed && (
+              <span className="rounded-md border border-white/20 bg-black/60 px-2.5 py-1 text-xs font-semibold text-white/90 backdrop-blur-sm">
+                {t("quest.narrationPlaying")}
+              </span>
+            )}
+            {beat === "scene" && room.voice && narrationDone && (
+              <button
+                type="button"
+                onClick={replayNarration}
+                className="pointer-events-auto rounded-md border border-white/20 bg-black/50 px-2.5 py-1 text-[11px] font-semibold text-white/80 backdrop-blur-sm transition hover:bg-black/70"
+              >
+                {t("quest.replayVoice")}
+              </button>
             )}
             <button
               type="button"
@@ -401,7 +560,7 @@ export function QuestClient() {
             </button>
           </div>
         </div>
-        {beat === "scene" && (
+        {beat === "scene" && narrationDone && (
           <div className="mx-4 h-0.5 overflow-hidden rounded-full bg-white/15 sm:mx-6">
             <div
               className={`h-full transition-[width] duration-100 ease-linear ${
@@ -413,18 +572,66 @@ export function QuestClient() {
         )}
       </div>
 
-      {/* Нижний слой: событие, вопрос, разбор и переход дальше */}
+      {/* Вопрос отделён от нижней панели и поднят над сценой: крупный текст
+          хорошо читается, но не закрывает хотспоты в нижней половине кадра. */}
+      {beat === "scene" && (
+        <div className="quest-question-wrap pointer-events-none absolute inset-x-0 z-30 px-4 sm:px-6">
+          <section
+            aria-labelledby="quest-question"
+            className="quest-question-panel mx-auto max-w-4xl rounded-2xl border border-white/30 bg-navy-950/90 px-4 py-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-5 sm:py-4"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="quest-question-label text-[11px] font-black uppercase tracking-[0.16em] text-white/65">
+                {t("quest.questionLabel")}
+              </p>
+              {!narrationDone && !narrationFailed && (
+                <p className="text-xs font-semibold text-white/70">
+                  {t("quest.timerAfterNarration")}
+                </p>
+              )}
+            </div>
+            <p
+              id="quest-question"
+              className="quest-question-text mt-1 text-xl font-black leading-tight text-white drop-shadow sm:text-3xl"
+            >
+              {t(room.questionKey)}
+            </p>
+
+            {narrationFailed && (
+              <div
+                className="pointer-events-auto mt-3 flex flex-wrap items-center gap-2 border-t border-white/15 pt-3"
+                role="status"
+              >
+                <p className="mr-auto text-xs text-white/70 sm:text-sm">
+                  {t("quest.voiceBlocked")}
+                </p>
+                <button
+                  type="button"
+                  onClick={replayNarration}
+                  className="rounded-lg bg-white px-4 py-2 text-xs font-bold text-navy-950 transition hover:bg-white/90 sm:text-sm"
+                >
+                  {t("quest.playVoice")}
+                </button>
+                <button
+                  type="button"
+                  onClick={startWithoutNarration}
+                  className="rounded-lg border border-white/25 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
+                >
+                  {t("quest.startWithoutVoice")}
+                </button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+
+      {/* Нижний слой: событие, разбор и переход дальше */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-4 pt-16 sm:px-6 sm:pb-6">
         <div className="mx-auto w-full max-w-4xl space-y-3">
           {beat === "scene" && (
-            <div>
-              <p className="text-sm leading-relaxed text-white/85 drop-shadow sm:text-base">
-                {t(room.eventKey)}
-              </p>
-              <p className="mt-1 text-lg font-bold leading-snug drop-shadow sm:text-2xl">
-                {t(room.questionKey)}
-              </p>
-            </div>
+            <p className="text-sm leading-relaxed text-white/85 drop-shadow sm:text-base">
+              {t(room.eventKey)}
+            </p>
           )}
 
           {/* Что произошло в кадре — рассказ от первого лица */}
@@ -512,10 +719,12 @@ export function QuestClient() {
 function FallbackChoices({
   room,
   outcome,
+  interactionsEnabled,
   onChoose,
 }: {
   room: ReturnType<typeof parseQuest>["rooms"][number];
   outcome: SceneOutcome | null;
+  interactionsEnabled: boolean;
   onChoose: (option: QuestOption) => void;
 }) {
   const t = useTranslations();
@@ -545,7 +754,7 @@ function FallbackChoices({
               key={option.id}
               type="button"
               onClick={() => onChoose(option)}
-              disabled={reveal}
+              disabled={reveal || !interactionsEnabled}
               aria-pressed={isChosen}
               className={`rounded-xl border px-4 py-3 text-left text-sm leading-relaxed transition disabled:cursor-default ${tone}`}
             >
@@ -568,4 +777,3 @@ function Shell({ children }: { children: React.ReactNode }) {
     </main>
   );
 }
-

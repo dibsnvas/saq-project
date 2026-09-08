@@ -23,7 +23,7 @@ export function QuestBeat({
   video?: string;
   text?: string;
   kind: "intro" | "outcome" | "bridge";
-  /** база пути к реплике; файл берётся по локали: <voice>.<locale>.wav */
+  /** база пути к реплике; файл берётся по локали: <voice>.<locale>.mp3 */
   voice?: string;
   /** клип доиграл (или не может играть) — такт передаёт ход дальше */
   onEnded?: () => void;
@@ -68,7 +68,7 @@ export function QuestBeat({
   // Реплика звучит один раз при появлении кадра. Субтитр виден всегда.
   useEffect(() => {
     if (!voice) return;
-    const audio = new Audio(`${voice}.${locale}.wav`);
+    const audio = new Audio(`${voice}.${locale}.mp3`);
     audio.volume = 0.9;
     audioRef.current = audio;
     audio.play().catch(() => setVoiceFailed(true));

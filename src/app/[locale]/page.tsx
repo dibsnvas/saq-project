@@ -1,12 +1,8 @@
+import Image from "next/image";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
-/**
- * Иконки сценариев нарисованы толстым контуром без мелких деталей: главная
- * страница адресована школьникам, и картинка должна читаться с расстояния
- * так же быстро, как заголовок.
- */
 function QuakeIcon() {
   return (
     <svg
@@ -22,7 +18,6 @@ function QuakeIcon() {
       <path d="M10 21 24 9l14 12" />
       <path d="M14 20v12h20V20" />
       <path d="M21 32v-6h6v6" />
-      {/* Разлом под домом: намеренно неровный, чтобы не читался как вода. */}
       <path d="M4 40h9l4 5 5-11 4 8 3-2h11" />
       <path d="M8 13 5 9M40 13l3-4" />
     </svg>
@@ -47,6 +42,50 @@ function FlameIcon() {
   );
 }
 
+function PartnerLogos({ label }: { label: string }) {
+  return (
+    <div className="flex min-w-0 flex-col items-start gap-2">
+      <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">
+        {label}
+      </p>
+      <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-start sm:gap-4">
+        <Image
+          src="/assets/brand/chevron.png"
+          alt="Chevron"
+          width={48}
+          height={52}
+          priority
+          className="h-10 w-9 object-contain sm:h-11 sm:w-10"
+        />
+        <Image
+          src="/assets/brand/caravan-of-knowledge.png"
+          alt="Caravan of Knowledge"
+          width={144}
+          height={34}
+          priority
+          className="h-7 w-[112px] object-contain sm:h-8 sm:w-36"
+        />
+        <Image
+          src="/assets/brand/national-volunteer-network.png"
+          alt="Национальная волонтёрская сеть"
+          width={126}
+          height={40}
+          priority
+          className="h-8 w-[100px] object-contain sm:h-9 sm:w-[126px]"
+        />
+        <Image
+          src="/assets/brand/saq-horizontal.png"
+          alt="SAQ"
+          width={78}
+          height={42}
+          priority
+          className="h-10 w-[74px] object-contain sm:h-11 sm:w-[82px]"
+        />
+      </div>
+    </div>
+  );
+}
+
 export default async function HomePage({
   params,
 }: {
@@ -57,8 +96,6 @@ export default async function HomePage({
   const t = await getTranslations("home");
   const tGame = await getTranslations("game");
 
-  /* Оформление задано строками-литералами, а не собирается из кусков:
-     сканер Tailwind видит только целые имена классов. */
   const scenarios = [
     {
       number: "01",
@@ -69,11 +106,11 @@ export default async function HomePage({
       text: t("cards.earthquake.text"),
       meta: t("cards.earthquake.meta"),
       action: t("cards.earthquake.action"),
-      bob: "home-bob",
-      card: "border-quake-500/30 bg-quake-100 shadow-[0_8px_0_0_var(--color-quake-500)] hover:shadow-[0_12px_0_0_var(--color-quake-500)]",
-      badge: "bg-white/70 text-quake-700",
-      icons: "bg-quake-500 text-white",
-      cta: "bg-quake-700 text-white",
+      card: "border-[#0066b2]/20 hover:border-[#0066b2]/50",
+      accent: "bg-[#0066b2]",
+      iconStyle: "bg-[#0066b2]/10 text-[#0066b2]",
+      badge: "bg-[#0066b2]/8 text-[#0066b2]",
+      cta: "bg-[#0066b2] text-white hover:bg-[#005796]",
     },
     {
       number: "02",
@@ -84,105 +121,158 @@ export default async function HomePage({
       text: t("cards.fire.text"),
       meta: t("cards.fire.meta"),
       action: t("cards.fire.action"),
-      bob: "home-bob-delayed",
-      card: "border-flame-500/30 bg-flame-100 shadow-[0_8px_0_0_var(--color-flame-500)] hover:shadow-[0_12px_0_0_var(--color-flame-500)]",
-      badge: "bg-white/70 text-flame-700",
-      icons: "bg-flame-500 text-white",
-      cta: "bg-flame-700 text-white",
+      card: "border-[#e21836]/20 hover:border-[#e21836]/50",
+      accent: "bg-[#e21836]",
+      iconStyle: "bg-[#e21836]/10 text-[#e21836]",
+      badge: "bg-[#e21836]/8 text-[#c8102e]",
+      cta: "bg-[#e21836] text-white hover:bg-[#c8102e]",
     },
   ];
 
   return (
-    <main className="relative min-h-dvh overflow-hidden bg-cream-50 text-ink-900">
-      {/* Мягкие цветные пятна вместо плоского фона — страница выглядит
-          приветливо, но не спорит с текстом за внимание. */}
+    <main className="saq-brand-page relative min-h-dvh overflow-hidden bg-[#f5f8fb] text-[#123047]">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-40 -left-32 h-96 w-96 rounded-full bg-sun-400/25 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-32 top-24 h-96 w-96 rounded-full bg-flame-500/15 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-quake-500/15 blur-3xl"
+        className="pointer-events-none absolute inset-0 opacity-[0.035] [background-image:linear-gradient(#0066b2_1px,transparent_1px),linear-gradient(90deg,#0066b2_1px,transparent_1px)] [background-size:42px_42px]"
       />
 
-      <div className="relative mx-auto flex min-h-dvh max-w-5xl flex-col px-5 py-6 sm:px-8">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-ink-900 text-sm font-black tracking-tight text-cream-50">
-              SAQ
+      <div className="relative mx-auto flex min-h-dvh max-w-7xl flex-col px-4 sm:px-7 lg:px-10">
+        <header className="flex flex-col gap-4 border-b border-[#0066b2]/10 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <PartnerLogos label={t("partnersLabel")} />
+          <div className="flex items-start justify-between gap-4 lg:items-center lg:justify-end">
+            <div className="min-w-0 max-w-[245px] sm:max-w-none lg:text-right">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#0066b2]">
+                {t("brandEyebrow")}
+              </p>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                {tGame("subtitle")}
+              </p>
             </div>
-            <div className="leading-tight">
-              <p className="text-sm font-bold">{tGame("title")}</p>
-              <p className="text-xs text-ink-600">{tGame("subtitle")}</p>
+            <div className="shrink-0">
+              <LanguageSwitcher tone="light" />
             </div>
           </div>
-          <LanguageSwitcher tone="light" />
         </header>
 
-        <section className="flex flex-1 flex-col justify-center py-12 sm:py-16">
-          <h1 className="max-w-3xl text-[2.6rem] font-black leading-[1.05] tracking-tight sm:text-6xl">
-            {t("hero")}
-          </h1>
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-ink-600 sm:text-lg">
-            {t("lead")}
-          </p>
+        <section className="relative mt-5 overflow-hidden bg-[#0066b2] text-white shadow-[0_24px_70px_rgba(0,102,178,0.20)] sm:mt-7">
+          <div className="pointer-events-none absolute inset-3 border border-white/35" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-24 -top-28 h-80 w-80 rounded-full border-[52px] border-white/10"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-32 left-[42%] h-64 w-64 rounded-full bg-[#e21836]/25 blur-3xl"
+          />
 
-          <div className="mt-11 grid gap-6 sm:grid-cols-2">
-            {scenarios.map((s) => (
+          <div className="relative grid items-center gap-8 px-7 py-10 sm:px-12 sm:py-14 lg:grid-cols-[1fr_300px] lg:px-16 lg:py-16">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 border border-white/35 bg-white/10 px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.18em] backdrop-blur-sm">
+                <span className="h-2 w-2 rounded-full bg-[#e21836]" />
+                {t("brandTagline")}
+              </div>
+              <h1 className="mt-5 max-w-3xl text-[2.55rem] font-black leading-[0.98] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
+                {t("hero")}
+              </h1>
+              <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/80 sm:text-lg">
+                {t("lead")}
+              </p>
+            </div>
+
+            <div className="hidden justify-self-end lg:block">
+              <div className="relative flex h-[270px] w-[230px] items-center justify-center bg-white p-8 shadow-2xl">
+                <Image
+                  src="/assets/brand/saq-vertical.png"
+                  alt="SAQ"
+                  width={160}
+                  height={247}
+                  priority
+                  className="h-full w-full object-contain"
+                />
+                <span className="absolute inset-x-0 bottom-0 h-2 bg-[#e21836]" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-9 sm:py-12">
+          <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#e21836]">
+                SAQ · 180
+              </p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#123047] sm:text-3xl">
+                {t("chooseScenario")}
+              </h2>
+            </div>
+            <Link
+              href="/teacher"
+              className="text-sm font-bold text-[#0066b2] underline decoration-[#0066b2]/30 underline-offset-4 transition hover:decoration-[#0066b2]"
+            >
+              {t("teacherDemoLink")} →
+            </Link>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            {scenarios.map((scenario) => (
               <Link
-                key={s.number}
-                href={s.href}
-                className={`group flex flex-col rounded-[32px] border-2 p-6 transition duration-200 hover:-translate-y-1 focus-visible:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink-900 sm:p-7 ${s.card}`}
+                key={scenario.number}
+                href={scenario.href}
+                className={`group relative flex min-h-[300px] flex-col overflow-hidden border-2 bg-white p-6 shadow-[0_14px_40px_rgba(18,48,71,0.07)] transition duration-200 hover:-translate-y-1 hover:shadow-[0_20px_55px_rgba(18,48,71,0.13)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#0066b2] sm:p-8 ${scenario.card}`}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div
-                    className={`flex h-16 w-16 items-center justify-center rounded-3xl ${s.icons} ${s.bob}`}
-                  >
-                    {s.icon}
-                  </div>
+                <span
+                  aria-hidden="true"
+                  className={`absolute inset-x-0 top-0 h-1.5 ${scenario.accent}`}
+                />
+                <div className="flex items-start justify-between gap-4">
                   <span
-                    className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${s.badge}`}
+                    className={`flex h-16 w-16 items-center justify-center rounded-full ${scenario.iconStyle}`}
                   >
-                    {t("scenarioNumber", { number: s.number })}
+                    {scenario.icon}
+                  </span>
+                  <span
+                    className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.15em] ${scenario.badge}`}
+                  >
+                    {t("scenarioNumber", { number: scenario.number })}
                   </span>
                 </div>
 
-                <h2 className="mt-6 text-3xl font-black leading-tight tracking-tight">
-                  {s.title}
-                </h2>
-                <p className="mt-1 text-sm font-bold text-ink-600">
-                  {s.subtitle}
+                <h3 className="mt-6 text-3xl font-black leading-tight tracking-tight text-[#123047]">
+                  {scenario.title}
+                </h3>
+                <p className="mt-1 text-sm font-bold text-[#0066b2]">
+                  {scenario.subtitle}
                 </p>
-                <p className="mt-4 text-sm leading-relaxed text-ink-600">
-                  {s.text}
-                </p>
-
-                <p className="mt-5 text-xs font-semibold text-ink-600/80">
-                  {s.meta}
+                <p className="mt-4 max-w-xl text-sm leading-relaxed text-slate-600">
+                  {scenario.text}
                 </p>
 
-                <span
-                  className={`mt-6 inline-flex w-fit items-center gap-2 rounded-full px-6 py-3 text-sm font-bold transition group-hover:gap-3 ${s.cta}`}
-                >
-                  {s.action}
-                  <span aria-hidden="true">→</span>
-                </span>
+                <div className="mt-auto flex flex-wrap items-end justify-between gap-4 pt-6">
+                  <p className="text-xs font-semibold text-slate-400">
+                    {scenario.meta}
+                  </p>
+                  <span
+                    className={`inline-flex items-center gap-3 px-5 py-3 text-sm font-black transition ${scenario.cta}`}
+                  >
+                    {scenario.action}
+                    <span
+                      aria-hidden="true"
+                      className="transition-transform group-hover:translate-x-1"
+                    >
+                      →
+                    </span>
+                  </span>
+                </div>
               </Link>
             ))}
           </div>
         </section>
 
-        <footer className="pb-2">
-          <Link
-            href="/teacher"
-            className="text-xs font-semibold text-ink-600 underline-offset-4 transition hover:text-ink-900 hover:underline"
-          >
-            {t("teacherDemoLink")}
-          </Link>
+        <footer className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-[#0066b2]/10 py-5 text-xs text-slate-400">
+          <p>{t("brandTagline")}</p>
+          <p className="font-bold uppercase tracking-[0.16em] text-[#0066b2]">
+            #saq · #kz_nvs
+          </p>
         </footer>
       </div>
     </main>

@@ -20,10 +20,13 @@ export interface SceneOutcome {
 export function QuestScene({
   room,
   outcome,
+  interactionsEnabled,
   onChoose,
 }: {
   room: QuestRoom;
   outcome: SceneOutcome | null;
+  /** Выбор открывается только после того, как вопрос прозвучал. */
+  interactionsEnabled: boolean;
   onChoose: (option: QuestOption) => void;
 }) {
   const t = useTranslations();
@@ -53,6 +56,7 @@ export function QuestScene({
           key={option.id}
           option={option}
           revealed={revealed}
+          interactionsEnabled={interactionsEnabled}
           isChosen={chosenId === option.id}
           onChoose={() => onChoose(option)}
           label={t(option.shortLabelKey)}
@@ -75,6 +79,7 @@ export function QuestScene({
 function Hotspot({
   option,
   revealed,
+  interactionsEnabled,
   isChosen,
   label,
   position,
@@ -82,6 +87,7 @@ function Hotspot({
 }: {
   option: QuestOption;
   revealed: boolean;
+  interactionsEnabled: boolean;
   isChosen: boolean;
   label: string;
   position: { left: number; top: number } | null;
@@ -90,7 +96,9 @@ function Hotspot({
   if (!option.hotspot || !position) return null;
 
   const tone = !revealed
-    ? "border-white/80 bg-navy-950/70 text-white"
+    ? interactionsEnabled
+      ? "border-white/80 bg-navy-950/80 text-white"
+      : "border-white/35 bg-navy-950/65 text-white/60"
     : option.correct
       ? "border-safe bg-safe/85 text-white"
       : isChosen
@@ -98,7 +106,9 @@ function Hotspot({
         : "border-white/25 bg-navy-950/50 text-white/45";
 
   const dot = !revealed
-    ? "bg-white quest-hotspot-pulse"
+    ? interactionsEnabled
+      ? "bg-white quest-hotspot-pulse"
+      : "bg-white/45"
     : option.correct
       ? "bg-safe"
       : isChosen
@@ -109,11 +119,11 @@ function Hotspot({
     <button
       type="button"
       onClick={onChoose}
-      disabled={revealed}
+      disabled={revealed || !interactionsEnabled}
       aria-pressed={isChosen}
       aria-label={label}
       style={{ left: position.left, top: position.top }}
-      className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 disabled:cursor-default"
+      className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 transition-opacity disabled:cursor-default"
     >
       <span className={`h-4 w-4 rounded-full ring-2 ring-navy-950/60 ${dot}`} />
       <span

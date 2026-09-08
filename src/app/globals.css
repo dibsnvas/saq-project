@@ -38,6 +38,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Фирменная типографика SAQ. Museo Sans Cyrl указан в брендбуке; Gill Sans
+   и Arial сохраняют близкую геометрию, если лицензионный файл не установлен. */
+.saq-brand-page {
+  font-family: "Museo Sans Cyrl", "Gill Sans", Arial, sans-serif;
+}
+
 /* Тряска сцены квеста «Землетрясение»: фон дрожит, пока идёт толчок.
    Масштаб 1.06 скрывает края кадра во время смещения. */
 @keyframes quake {
@@ -85,6 +91,31 @@ body {
 
 .quest-hotspot-pulse {
   animation: hotspot-pulse 1.8s ease-out infinite;
+}
+
+/* Вопрос стоит выше всех интерактивных точек. На низком landscape-экране
+   панель сжимается и остаётся между шапкой и самым верхним хотспотом. */
+.quest-question-wrap {
+  top: 7rem;
+}
+
+@media (max-height: 500px) {
+  .quest-question-wrap {
+    top: 5rem;
+  }
+
+  .quest-question-panel {
+    padding: 0.6rem 0.85rem;
+  }
+
+  .quest-question-label {
+    display: none;
+  }
+
+  .quest-question-text {
+    margin-top: 0;
+    font-size: 1.25rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

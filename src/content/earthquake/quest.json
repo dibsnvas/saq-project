@@ -53,7 +53,8 @@
       },
       "intro": {
         "video": "/assets/quest/video/apartment-intro.mp4"
-      }
+      },
+      "voice": "/audio/quest/scene/apartment"
     },
     {
       "id": "elevator",
@@ -102,7 +103,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-school.jpg",
         "textKey": "quest.room.elevator.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/elevator"
     },
     {
       "id": "school",
@@ -150,7 +152,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-mall.jpg",
         "textKey": "quest.room.school.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/school"
     },
     {
       "id": "mall",
@@ -198,7 +201,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-street.jpg",
         "textKey": "quest.room.mall.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/mall"
     },
     {
       "id": "street",
@@ -246,7 +250,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-car.jpg",
         "textKey": "quest.room.street.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/street"
     },
     {
       "id": "car",
@@ -293,7 +298,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-night.jpg",
         "textKey": "quest.room.car.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/car"
     },
     {
       "id": "night",
@@ -340,7 +346,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-aftershock.jpg",
         "textKey": "quest.room.night.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/night"
     },
     {
       "id": "aftershock",
@@ -387,7 +394,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-help.jpg",
         "textKey": "quest.room.aftershock.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/aftershock"
     },
     {
       "id": "help",
@@ -434,7 +442,8 @@
       "bridge": {
         "image": "/assets/quest/bridge/to-evacuation.jpg",
         "textKey": "quest.room.help.bridge"
-      }
+      },
+      "voice": "/audio/quest/scene/help"
     },
     {
       "id": "evacuation",
@@ -477,7 +486,8 @@
           "image": "/assets/quest/outcome/evacuation-elevator_back.jpg",
           "textKey": "quest.room.evacuation.outcome.elevator_back"
         }
-      }
+      },
+      "voice": "/audio/quest/scene/evacuation"
     }
   ]
 }
