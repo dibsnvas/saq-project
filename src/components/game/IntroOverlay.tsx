@@ -6,10 +6,9 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Link } from "@/i18n/navigation";
 import { audioManager } from "@/game/audio/AudioManager";
 import { introVideoSrc } from "@/game/introVideo";
+import { useScenarioPack } from "./ScenarioContext";
 
 const INTRO_SEEN_KEY = "saq.introSeen";
-
-const POSTER_SRC = "/assets/backgrounds/classroom_students_poster.jpg";
 
 /** Короткий fade перед DecisionOverlay (часть бюджета ≤800ms). */
 const FADE_MS = 280;
@@ -26,7 +25,9 @@ type FinishReason = "ended" | "skipped" | "error" | "fallback";
 export function IntroOverlay({ onDone }: { onDone: () => void }) {
   const t = useTranslations();
   const locale = useLocale();
-  const videoSrc = introVideoSrc(locale);
+  const pack = useScenarioPack();
+  const videoSrc = introVideoSrc(pack.intro, locale);
+  const hasVideo = videoSrc !== null;
   const videoRef = useRef<HTMLVideoElement>(null);
   const finishedRef = useRef(false);
   const failTimerRef = useRef<number | null>(null);
@@ -143,6 +144,12 @@ export function IntroOverlay({ onDone }: { onDone: () => void }) {
   const startPressed = () => {
     void audioManager.unlock();
 
+    // Сценарий без ролика: постер → сразу первое решение, без экрана ошибки.
+    if (!hasVideo) {
+      finishIntro("fallback");
+      return;
+    }
+
     const video = videoRef.current;
     if (!video) {
       setStage("error");
@@ -176,24 +183,26 @@ export function IntroOverlay({ onDone }: { onDone: () => void }) {
         leaving ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
-      <video
-        ref={videoRef}
-        src={videoSrc}
-        poster={POSTER_SRC}
-        playsInline
-        preload="auto"
-        muted={muted}
-        className={
-          stage === "video"
-            ? "absolute inset-0 h-full w-full bg-black object-contain"
-            : "pointer-events-none absolute h-0 w-0 opacity-0"
-        }
-        onEnded={() => finishIntro("ended")}
-        onError={() => {
-          if (!finishedRef.current) setStage("error");
-        }}
-        aria-hidden={stage !== "video"}
-      />
+      {hasVideo && (
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          poster={pack.intro.poster}
+          playsInline
+          preload="auto"
+          muted={muted}
+          className={
+            stage === "video"
+              ? "absolute inset-0 h-full w-full bg-black object-contain"
+              : "pointer-events-none absolute h-0 w-0 opacity-0"
+          }
+          onEnded={() => finishIntro("ended")}
+          onError={() => {
+            if (!finishedRef.current) setStage("error");
+          }}
+          aria-hidden={stage !== "video"}
+        />
+      )}
 
       {stage === "video" && (
         <>
@@ -233,7 +242,7 @@ export function IntroOverlay({ onDone }: { onDone: () => void }) {
         <div className="relative h-full w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={POSTER_SRC}
+            src={pack.intro.poster}
             alt=""
             className="h-full w-full object-cover"
           />
@@ -246,7 +255,7 @@ export function IntroOverlay({ onDone }: { onDone: () => void }) {
           <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-4 px-6 pb-8 text-center">
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-white/50">
-                {t("home.scenarioLabel")} · {t("scenario.fireSchool.name")}
+                {t("home.scenarioLabel")} · {t(pack.intro.nameKey)}
               </p>
               <h1 className="mt-1 text-3xl font-bold sm:text-4xl">
                 {t("game.title")}

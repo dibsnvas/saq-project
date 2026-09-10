@@ -21,12 +21,15 @@ export function QuestScene({
   room,
   outcome,
   interactionsEnabled,
+  effect,
   onChoose,
 }: {
   room: QuestRoom;
   outcome: SceneOutcome | null;
   /** Выбор открывается только после того, как вопрос прозвучал. */
   interactionsEnabled: boolean;
+  /** тряска кадра только у землетрясения */
+  effect: "quake" | "none";
   onChoose: (option: QuestOption) => void;
 }) {
   const t = useTranslations();
@@ -43,7 +46,11 @@ export function QuestScene({
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <div
         className={`absolute inset-0 bg-cover bg-center ${
-          revealed ? "quest-quake-calm" : "quest-quake"
+          effect === "quake"
+            ? revealed
+              ? "quest-quake-calm"
+              : "quest-quake"
+            : ""
         }`}
         style={{
           backgroundImage: `url(${room.background})`,

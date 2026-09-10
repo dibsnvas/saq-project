@@ -36,8 +36,16 @@ export const introDecisionSchema = z.object({
   options: z
     .array(
       z.object({
-        /** id — одновременно effect-идентификатор (calm|backpack|rush|assess) */
-        id: z.enum(["calm", "backpack", "rush", "assess"]),
+        /** id варианта; без effect он же и эффект (calm|backpack|rush|assess) */
+        id: z.string().min(1),
+        /**
+         * Что делает сцена: calm/assess — спокойный старт, rush — заминка
+         * в коридоре, backpack — возврат за вещами, flare — вспышка огня
+         * (вода на горящее масло).
+         */
+        effect: z
+          .enum(["calm", "backpack", "rush", "assess", "flare"])
+          .optional(),
         labelKey: z.string().min(1),
         /** событие сценария/телеметрии, записываемое при выборе */
         event: z.string().min(1),
@@ -85,8 +93,7 @@ export type TriggerZone = z.infer<typeof triggerZoneSchema>;
 export type ScenarioEventDefinition = z.infer<typeof eventDefinitionSchema>;
 export type ScenarioDefinition = z.infer<typeof scenarioSchema>;
 export type IntroDecision = z.infer<typeof introDecisionSchema>;
-export type IntroDecisionOptionId =
-  IntroDecision["options"][number]["id"];
+export type IntroDecisionOptionId = IntroDecision["options"][number]["id"];
 export type EducationalRule = z.infer<typeof educationalRuleSchema>;
 
 export function parseScenario(raw: unknown): ScenarioDefinition {

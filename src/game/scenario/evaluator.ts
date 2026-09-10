@@ -8,7 +8,13 @@ import {
   scoreDimension,
   toLevel,
   AWARENESS_WEIGHTS,
+  CORRECTION_REFUND,
+  CORRECTIONS,
+  CRITICAL_RISKS,
+  REQUIRED_EVENTS,
+  RISK_FIX,
   SAFETY_WEIGHTS,
+  type CorrectionDef,
   type CompanionOutcome,
   type ScenarioOutcome,
   type SkillLevel,
@@ -116,6 +122,48 @@ const LESSON_PRIORITY = [
   "time_up",
 ];
 
+/**
+ * Политика оценки здания: правила разбора, веса, критичные риски,
+ * обязательные события. Школа и ТРЦ используют политику по умолчанию;
+ * квартира и офис учат другим действиям и приносят свою (пакет сценария).
+ */
+export interface EvaluationPolicy {
+  rules: EducationalRule[];
+  awarenessWeights: Record<string, number>;
+  safetyWeights: Record<string, number>;
+  criticalRisks: readonly string[];
+  riskFix: Record<string, string>;
+  correctionRefund: Record<string, number>;
+  corrections: CorrectionDef[];
+  requiredEvents: readonly string[];
+  timeline: Array<{ id: string; labelKey: string }>;
+  lessonPriority: string[];
+}
+
+export const DEFAULT_POLICY: EvaluationPolicy = {
+  rules: RULES,
+  awarenessWeights: AWARENESS_WEIGHTS,
+  safetyWeights: SAFETY_WEIGHTS,
+  criticalRisks: CRITICAL_RISKS,
+  riskFix: RISK_FIX,
+  correctionRefund: CORRECTION_REFUND,
+  corrections: CORRECTIONS,
+  requiredEvents: REQUIRED_EVENTS,
+  timeline: TIMELINE_LABELS,
+  lessonPriority: LESSON_PRIORITY,
+};
+
+/** Политика здания = политика по умолчанию + переопределения. */
+export function extendPolicy(
+  overrides: Partial<Omit<EvaluationPolicy, "rules">> & { rules?: unknown },
+): EvaluationPolicy {
+  return {
+    ...DEFAULT_POLICY,
+    ...overrides,
+    rules: overrides.rules ? parseRules(overrides.rules) : DEFAULT_POLICY.rules,
+  };
+}
+
 function axisGrade(good: number, risk: number): AxisGrade {
   if (risk === 0) return good > 0 ? "good" : "mixed";
   return good > 0 ? "mixed" : "poor";
@@ -130,12 +178,15 @@ export function evaluateScenario(input: {
   companionSafe: boolean;
   /** сколько раз учитель останавливал игрока (0 по умолчанию) */
   teacherInterventions?: number;
+  /** политика здания; по умолчанию — школа */
+  policy?: EvaluationPolicy;
 }): DebriefReport {
+  const policy = input.policy ?? DEFAULT_POLICY;
   const seen = new Set(input.events.map((e) => e.id));
   const teacherInterventions =
     input.teacherInterventions ?? (seen.has("teacher_intervened") ? 1 : 0);
 
-  const matched = RULES.filter((rule) => seen.has(rule.event));
+  const matched = policy.rules.filter((rule) => seen.has(rule.event));
   const byCategory = (category: RuleCategory) =>
     matched.filter((rule) => rule.category === category);
 
@@ -163,16 +214,16 @@ export function evaluateScenario(input: {
       : "safe";
 
   const matchedIds = new Set(matched.map((r) => r.id));
-  const lessonRuleId = LESSON_PRIORITY.find((id) => matchedIds.has(id));
+  const lessonRuleId = policy.lessonPriority.find((id) => matchedIds.has(id));
   const lessonKey =
     (lessonRuleId &&
-      RULES.find((r) => r.id === lessonRuleId)?.lessonKey) ||
+      policy.rules.find((r) => r.id === lessonRuleId)?.lessonKey) ||
     "debrief.lesson.default";
 
   const timeline: TimelineEntry[] = [
     { id: "alarm", labelKey: "debrief.timeline.alarm", t: 0 },
   ];
-  for (const { id, labelKey } of TIMELINE_LABELS) {
+  for (const { id, labelKey } of policy.timeline) {
     const event = input.events.find((e) => e.id === id);
     if (event) timeline.push({ id, labelKey, t: event.t });
   }
@@ -180,8 +231,20 @@ export function evaluateScenario(input: {
 
   // ---- Branching-профиль: safety / awareness / completion → итог ----
 
-  const awarenessScore = scoreDimension(seen, AWARENESS_WEIGHTS, true);
-  const safetyScore = scoreDimension(seen, SAFETY_WEIGHTS, true);
+  const awarenessScore = scoreDimension(
+    seen,
+    policy.awarenessWeights,
+    true,
+    policy.riskFix,
+    policy.correctionRefund,
+  );
+  const safetyScore = scoreDimension(
+    seen,
+    policy.safetyWeights,
+    true,
+    policy.riskFix,
+    policy.correctionRefund,
+  );
 
   const scenarioOutcome = resolveOutcome({
     success: input.success,
@@ -189,6 +252,9 @@ export function evaluateScenario(input: {
     teacherInterventions,
     awarenessScore,
     safetyScore,
+    requiredEvents: policy.requiredEvents,
+    criticalRisks: policy.criticalRisks,
+    riskFix: policy.riskFix,
   });
 
   // Completion — обязательные критерии, мелкие плюсы их не компенсируют:
@@ -213,7 +279,7 @@ export function evaluateScenario(input: {
     awareness: toLevel(awarenessScore, LEVEL_BANDS.awareness),
     completion: completionLevel,
     teacherInterventions,
-    correctedMistakes: detectCorrections(seen),
+    correctedMistakes: detectCorrections(seen, policy.corrections),
     explanationKey: OUTCOME_EXPLANATION[scenarioOutcome],
     companion: resolveCompanionOutcome({
       helped: input.companionHelped,

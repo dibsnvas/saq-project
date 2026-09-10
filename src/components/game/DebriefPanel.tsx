@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useScenarioPack } from "./ScenarioContext";
 import type { GameEventMap } from "@/game/EventBus";
 import type { ScenarioOutcome, SkillLevel } from "@/game/scenario/branching";
 
@@ -49,6 +50,7 @@ export function DebriefPanel({
   onRestart: () => void;
 }) {
   const t = useTranslations();
+  const { next } = useScenarioPack();
   const { report } = payload;
   const { profile } = report;
 
@@ -204,10 +206,23 @@ export function DebriefPanel({
           {t("debrief.replayQuestion")}
         </p>
         <div className="mt-3 flex flex-wrap justify-center gap-2.5">
+          {/* Следующая локация того же сценария — главное действие после разбора. */}
+          {next && (
+            <Link
+              href={next.href}
+              className="rounded-lg bg-safe px-6 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+            >
+              {t(next.labelKey)} →
+            </Link>
+          )}
           <button
             type="button"
             onClick={onRestart}
-            className="rounded-lg bg-safe px-6 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+            className={
+              next
+                ? "rounded-lg border border-white/20 bg-navy-800/80 px-6 py-2.5 text-sm text-white/85 hover:bg-navy-700"
+                : "rounded-lg bg-safe px-6 py-2.5 text-sm font-semibold text-white hover:brightness-110"
+            }
           >
             {t("hud.playAgain")}
           </button>

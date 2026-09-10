@@ -102,11 +102,18 @@ export const PAUSE_DUCK_LEVEL = 0.06;
  * система тихо падает на placeholder teacher_muffled (см. audio-map.md).
  * kk: «Сабыр сақтаңдар!», «Асықпаңдар!», «Мұғалімнің артынан жүріңдер!»
  */
+let calmVoiceNames: Record<"ru" | "kk", string[]> = {
+  kk: ["sabyr_saqtandar", "asykpandar", "mugalimnin_artynan"],
+  ru: ["sohranyaite_spokoistvie", "ne_toropites", "idite_za_uchitelem"],
+};
+
+/** Набор реплик задаёт пакет сценария: «Идите за учителем» в ТРЦ неуместно. */
+export function setCalmVoiceNames(names: Record<"ru" | "kk", string[]>): void {
+  calmVoiceNames = names;
+}
+
 const localizedCalmVoices = (locale: string): string[] => {
-  const names =
-    locale === "kk"
-      ? ["sabyr_saqtandar", "asykpandar", "mugalimnin_artynan"]
-      : ["sohranyaite_spokoistvie", "ne_toropites", "idite_za_uchitelem"];
+  const names = locale === "kk" ? calmVoiceNames.kk : calmVoiceNames.ru;
   return [
     ...names.map((n) => `/audio/voices/${locale}/${n}.mp3`),
     AUDIO_FILES.teacherMuffled,

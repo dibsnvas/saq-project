@@ -9,5 +9,5 @@ export default async function EarthquakeQuestPage({
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return <QuestClient />;
+  return <QuestClient questId="earthquake" />;
 }

@@ -64,6 +64,16 @@ export interface RoomExit {
   spawn: string;
   /** телеметрия при использовании */
   telemetryEvent: string;
+  /** событие сценария при использовании (например, «вернулся в квартиру») */
+  scenarioEvent?: string;
+  /** выход доступен только после события */
+  requires?: string;
+  /** выход пропадает после события */
+  requiresNot?: string;
+  /** не было события-проверки → риск (открыл дверь, не проверив) */
+  warnIfMissing?: { event: string; riskEvent: string };
+  /** пауза перед переходом с сообщением (ждём спасателей на балконе) */
+  beat?: { messageKey: string; ms: number };
 }
 
 /** Зона автоперехода: наступил — перешёл (например, спуск по лестнице). */
@@ -84,6 +94,10 @@ export interface RoomHotspot {
   scenarioEvent: string;
   /** скрыть хотспот после первого использования */
   once: boolean;
+  /** хотспот доступен только после события */
+  requires?: string;
+  /** хотспот пропадает после события */
+  requiresNot?: string;
 }
 
 export interface RoomProp {
@@ -94,6 +108,30 @@ export interface RoomProp {
   flipX?: boolean;
   /** прибавка к depth (по умолчанию depth = at.y) */
   depthBias?: number;
+  /** проп появляется после любого из событий (крышка, полотенца у двери) */
+  showOnEvents?: string[];
+  /** задержка появления, мс (крышка ложится, когда вспышка опала) */
+  showDelayMs?: number;
+  /** проп скрыт, если уже было одно из событий */
+  hideOnEvents?: string[];
+  /** живой огонь: мерцает; гаснет или вспыхивает на первом решении */
+  fire?: boolean;
+}
+
+/**
+ * Зона выбора: игрок вошёл — короткий вопрос (пригнуться в дыму или идти
+ * в полный рост). Ответ — событие сценария и эффект движения.
+ */
+export interface ChoiceZone {
+  id: string;
+  rect: Rect;
+  promptKey: string;
+  options: Array<{
+    id: string;
+    labelKey: string;
+    event: string;
+    effect?: "crouch" | "upright";
+  }>;
 }
 
 export type NpcBehavior =
@@ -243,6 +281,8 @@ export interface RoomLayout {
   fx: RoomFx;
   /** ключ цели, показываемой в HUD при входе в комнату (если меняется) */
   objectiveKey?: string;
+  /** цель при повторном входе после события (последнее случившееся — главное) */
+  objectiveKeyAfter?: Array<{ event: string; key: string }>;
   /**
    * Опасная зона: задержка в ней даёт предупреждение (событие входа
    * обрабатывает зона сценария в scenario.json).
@@ -256,4 +296,6 @@ export interface RoomLayout {
   slowZones?: SlowZone[];
   /** подсвеченный спокойный проход (зелёная полоса на полу) */
   calmLane?: Rect;
+  /** зоны выбора (см. ChoiceZone) */
+  choiceZones?: ChoiceZone[];
 }

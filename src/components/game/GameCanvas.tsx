@@ -2,13 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import type Phaser from "phaser";
+import type { ScenarioId } from "@/game/scenarios/types";
 
 /**
  * Единственная точка контакта React ↔ Phaser-инстанс.
  * Создаёт игру строго один раз на маунт и полностью уничтожает её на анмаунт —
  * ни hot reload, ни навигация не оставляют второй Canvas.
  */
-export default function GameCanvas() {
+export default function GameCanvas({ scenarioId }: { scenarioId: ScenarioId }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
@@ -19,7 +20,7 @@ export default function GameCanvas() {
       // Phaser импортируется только здесь, в браузере.
       const { createGame } = await import("@/game/config");
       if (disposed || !containerRef.current || gameRef.current) return;
-      gameRef.current = createGame(containerRef.current);
+      gameRef.current = createGame(containerRef.current, scenarioId);
     })();
 
     return () => {
@@ -31,7 +32,7 @@ export default function GameCanvas() {
         w.__saqGame = null;
       }
     };
-  }, []);
+  }, [scenarioId]);
 
   return (
     <div

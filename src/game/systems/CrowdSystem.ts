@@ -1,9 +1,9 @@
 import Phaser from "phaser";
-import { NPC_TEX } from "../assets";
 import type { ScenarioState } from "../scenario/state";
 import type { FigureRole, RoomLayout, RoomNpc } from "../rooms/types";
 import { scaleAtDepth } from "../rooms/walk";
 import type { InteractionSystem } from "./InteractionSystem";
+import type { BubbleKind, ScenarioPack } from "../scenarios/types";
 
 type NpcState = "idle" | "evacuating" | "confused" | "following" | "safe";
 
@@ -53,7 +53,10 @@ export class CrowdSystem {
   private roomCleanup?: Phaser.GameObjects.GameObject[];
   private pendingHelpId?: string;
 
-  constructor(private scene: Phaser.Scene) {}
+  constructor(
+    private scene: Phaser.Scene,
+    private pack: ScenarioPack,
+  ) {}
 
   build(
     layout: RoomLayout,
@@ -144,7 +147,13 @@ export class CrowdSystem {
     if (this.companionApproachActive) return;
 
     if (this.companion?.active && this.state?.companionActive) {
-      this.followTarget(this.companion, playerX, playerY, "teen", 0.96);
+      this.followTarget(
+        this.companion,
+        playerX,
+        playerY,
+        this.pack.companion.role,
+        this.pack.companion.figureFill,
+      );
     }
 
     for (const member of this.members.values()) {
@@ -177,9 +186,9 @@ export class CrowdSystem {
         id: "companion",
         x: this.companion.x,
         y: this.companion.y,
-        role: "teen",
+        role: this.pack.companion.role,
         textureHeight: this.companionTextureHeight,
-        figureFill: 0.96,
+        figureFill: this.pack.companion.figureFill,
       });
     }
     return list;
@@ -220,7 +229,10 @@ export class CrowdSystem {
         const legs = points.map((p, i) => ({
           x: p.x,
           y: p.y,
-          d: total > 0 ? Math.max(180, (lengths[i] / total) * plan.duration) : 200,
+          d:
+            total > 0
+              ? Math.max(180, (lengths[i] / total) * plan.duration)
+              : 200,
         }));
 
         const runLeg = (index: number) => {
@@ -247,7 +259,9 @@ export class CrowdSystem {
             duration: leg.d,
             ease: index === 0 ? "Sine.easeIn" : "Linear",
             onUpdate: () => {
-              img.setScale(this.scaleFor(member.def, img.y, member.textureHeight));
+              img.setScale(
+                this.scaleFor(member.def, img.y, member.textureHeight),
+              );
               img.setDepth(img.y);
             },
             onComplete: () => runLeg(index + 1),
@@ -282,7 +296,8 @@ export class CrowdSystem {
   /** Остановить топтание у дыма — пауза перед разворотом. */
   haltRedirectMilling(): void {
     for (const member of this.members.values()) {
-      if (member.def.behavior.kind !== "redirect" || member.redirected) continue;
+      if (member.def.behavior.kind !== "redirect" || member.redirected)
+        continue;
       this.scene.tweens.killTweensOf(member.image);
       member.image.setAngle(0);
     }
@@ -370,18 +385,21 @@ export class CrowdSystem {
     this.companionMarker = undefined;
     this.scene.tweens.killTweensOf(this.companion);
     // Остаётся у толпы на точке сбора.
-    this.companion.setTexture(NPC_TEX.girlIdle);
+    this.companion.setTexture(this.pack.companion.idleTexture);
     this.companion.setOrigin(0.5, 1);
     this.companionTextureHeight = this.companion.height;
     if (this.layout) {
-      this.companion.setPosition(940, 560);
+      this.companion.setPosition(
+        this.pack.companion.assemblyAt.x,
+        this.pack.companion.assemblyAt.y,
+      );
       this.companion.setScale(
         scaleAtDepth(
           this.layout.perspective,
           this.companion.y,
-          "teen",
+          this.pack.companion.role,
           this.companionTextureHeight,
-          0.96,
+          this.pack.companion.figureFill,
         ),
       );
       this.companion.setDepth(this.companion.y);
@@ -398,8 +416,8 @@ export class CrowdSystem {
     const img = this.companion;
     this.scene.tweens.add({
       targets: img,
-      x: 940,
-      y: 560,
+      x: this.pack.companion.assemblyAt.x,
+      y: this.pack.companion.assemblyAt.y,
       duration: 1400,
       ease: "Sine.easeInOut",
       onUpdate: () => {
@@ -408,9 +426,9 @@ export class CrowdSystem {
           scaleAtDepth(
             this.layout.perspective,
             img.y,
-            "teen",
+            this.pack.companion.role,
             this.companionTextureHeight,
-            0.96,
+            this.pack.companion.figureFill,
           ),
         );
         img.setDepth(img.y);
@@ -458,9 +476,9 @@ export class CrowdSystem {
           scaleAtDepth(
             this.layout.perspective,
             img.y,
-            "teen",
+            this.pack.companion.role,
             this.companionTextureHeight,
-            0.96,
+            this.pack.companion.figureFill,
           ),
         );
         img.setDepth(img.y);
@@ -578,13 +596,13 @@ export class CrowdSystem {
   private ensureCompanionNear(playerX: number, playerY: number): void {
     if (!this.companion || !this.companion.scene) {
       this.companion = this.scene.add
-        .image(playerX - 56, playerY + 4, NPC_TEX.girlWalk)
+        .image(playerX - 56, playerY + 4, this.pack.companion.walkTexture)
         .setOrigin(0.5, 1)
         .setDepth(playerY);
       this.companionTextureHeight = this.companion.height;
     } else {
       this.companion.setPosition(playerX - 56, playerY + 4);
-      this.companion.setTexture(NPC_TEX.girlWalk);
+      this.companion.setTexture(this.pack.companion.walkTexture);
       this.companion.setOrigin(0.5, 1);
       this.companionTextureHeight = this.companion.height;
       this.companion.setVisible(true).setAlpha(1);
@@ -594,9 +612,9 @@ export class CrowdSystem {
         scaleAtDepth(
           this.layout.perspective,
           this.companion.y,
-          "teen",
+          this.pack.companion.role,
           this.companionTextureHeight,
-          0.96,
+          this.pack.companion.figureFill,
         ),
       );
       this.companion.setDepth(this.companion.y);
@@ -606,16 +624,19 @@ export class CrowdSystem {
 
   private releaseCompanionToAssembly(layout: RoomLayout): void {
     if (!this.companion?.active) return;
-    this.companion.setPosition(940, 560);
-    this.companion.setTexture(NPC_TEX.girlIdle);
+    this.companion.setPosition(
+      this.pack.companion.assemblyAt.x,
+      this.pack.companion.assemblyAt.y,
+    );
+    this.companion.setTexture(this.pack.companion.idleTexture);
     this.companionTextureHeight = this.companion.height;
     this.companion.setScale(
       scaleAtDepth(
         layout.perspective,
         this.companion.y,
-        "teen",
+        this.pack.companion.role,
         this.companionTextureHeight,
-        0.96,
+        this.pack.companion.figureFill,
       ),
     );
     this.companion.setDepth(this.companion.y);
@@ -647,29 +668,11 @@ export class CrowdSystem {
     }
   }
 
-  private localeLine(
-    kind: "together" | "wait" | "accept" | "stay" | "redirect" | "reportAck",
-  ): string {
-    const ru = typeof document !== "undefined" &&
+  private localeLine(kind: BubbleKind): string {
+    const ru =
+      typeof document !== "undefined" &&
       document.documentElement.lang?.startsWith("ru");
-    const lines = ru
-      ? {
-          together: "Иду с вами",
-          wait: "Жду учителя",
-          accept: "Хорошо, оставайся",
-          stay: "Я подожду здесь",
-          redirect: "К запасному выходу!",
-          reportAck: "Принято. Все на месте.",
-        }
-      : {
-          together: "Сізбен барамын",
-          wait: "Мұғалімді күтемін",
-          accept: "Жақсы, күт",
-          stay: "Осында тұрамын",
-          redirect: "Қосалқы шығуға!",
-          reportAck: "Қабылданды. Бәрі жиналды.",
-        };
-    return lines[kind];
+    return this.pack.bubbles[ru ? "ru" : "kk"][kind];
   }
 
   private showBubble(

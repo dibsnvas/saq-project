@@ -107,6 +107,16 @@ export const questSchema = z
     titleKey: z.string().min(1),
     /** сколько секунд даётся на решение в комнате со сценой */
     decisionSeconds: z.number().int().positive(),
+    /** эффект кадра: тряска — землетрясение, none — пожар и прочее */
+    effect: z.enum(["quake", "none"]).optional(),
+    /** «время вышло»: у каждой беды своя причина не медлить */
+    timeoutNoteKey: z.string().min(1).optional(),
+    /** текст итога «всё верно» */
+    perfectKey: z.string().min(1).optional(),
+    /** следующая локация сценария — главная кнопка на экране итога */
+    next: z
+      .object({ href: z.string().min(1), labelKey: z.string().min(1) })
+      .optional(),
     rooms: z.array(questRoomSchema).min(1).max(MAX_QUEST_ROOMS),
   })
   .superRefine((quest, ctx) => {

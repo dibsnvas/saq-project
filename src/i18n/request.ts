@@ -11,15 +11,21 @@ export default getRequestConfig(async ({ requestLocale }) => {
   // UI-словарь + отдельно отредактированные тексты сценария.
   // Никакого автоматического перевода в рантайме — только готовые файлы.
   const uiMessages = (await import(`../messages/${locale}.json`)).default;
-  const scenarioMessages = (
-    await import(`../content/fire-school/${locale}.json`)
+  const fireSchool = (await import(`../content/fire-school/${locale}.json`))
+    .default;
+  const fireMall = (await import(`../content/fire-mall/${locale}.json`))
+    .default;
+  const fireApartment = (
+    await import(`../content/fire-apartment/${locale}.json`)
   ).default;
+  const fireOffice = (await import(`../content/fire-office/${locale}.json`))
+    .default;
 
   return {
     locale,
     messages: {
       ...uiMessages,
-      scenario: { fireSchool: scenarioMessages },
+      scenario: { fireSchool, fireMall, fireApartment, fireOffice },
     },
   };
 });

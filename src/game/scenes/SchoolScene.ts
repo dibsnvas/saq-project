@@ -7,27 +7,32 @@ import {
   REGISTRY_DEBUG_COLLISIONS,
   REGISTRY_DEBUG_NPC_PATHS,
   REGISTRY_DEBUG_PERSPECTIVE,
+  REGISTRY_PACK_KEY,
   REGISTRY_SCENARIO_KEY,
 } from "../constants";
 import { eventBus } from "../EventBus";
-import { PLAYER_ANIM, PLAYER_TEX, type Direction } from "../assets";
+import { FX_TEX, PLAYER_ANIM, PLAYER_TEX, type Direction } from "../assets";
 import type { ScenarioDefinition } from "../scenario/schema";
 import {
   addRouteEvidence,
   createScenarioState,
   type ScenarioState,
 } from "../scenario/state";
-import {
-  CORRECTION_POLICY,
-  TEACHER_INTERVENTION,
-} from "../scenario/branching";
+import { CORRECTION_POLICY, TEACHER_INTERVENTION } from "../scenario/branching";
 import {
   FALLBACK_HINT,
   shouldRevealCalmLaneHint,
   shouldRevealSafeRouteHint,
 } from "../hintPolicy";
-import { ROOM_ENTER_MESSAGE, ROOM_LAYOUTS } from "../rooms/layouts";
-import type { Rect, RoomId, RoomLayout, SmokeStage } from "../rooms/types";
+import type { HelpChoice, ScenarioPack } from "../scenarios/types";
+import type {
+  Rect,
+  RoomExit,
+  RoomId,
+  RoomLayout,
+  RoomProp,
+  SmokeStage,
+} from "../rooms/types";
 import { clampToWalk, depthNorm, scaleAtDepth } from "../rooms/walk";
 import { InputController } from "../systems/InputController";
 import { InteractionSystem } from "../systems/InteractionSystem";
@@ -48,10 +53,27 @@ import {
 import { NpcPathDebugSystem } from "../systems/NpcPathDebugSystem";
 import { AmbientAudioSystem } from "../audio/AmbientAudioSystem";
 import { audioManager } from "../audio/AudioManager";
-import { AUDIO_FILES, AUDIO_STATES } from "../audio/RoomAudioConfig";
+import {
+  AUDIO_FILES,
+  AUDIO_STATES,
+  setCalmVoiceNames,
+} from "../audio/RoomAudioConfig";
 import { MinimapSystem } from "../systems/MinimapSystem";
 import { PerspectiveDebugSystem } from "../systems/PerspectiveDebugSystem";
 import { CollisionDebugSystem } from "../systems/CollisionDebugSystem";
+
+/** Присевший игрок — такая доля роста стоящего. */
+const CROUCH_HEIGHT = 0.72;
+
+/** Выбор у растерянного NPC по умолчанию (школа, ТРЦ). */
+const DEFAULT_HELP_CHOICE: HelpChoice = {
+  promptKey: "choice.helpStudent.prompt",
+  options: [
+    { id: "companion", labelKey: "choice.helpStudent.together" },
+    { id: "referred", labelKey: "choice.helpStudent.waitTeacher" },
+    { id: "declined", labelKey: "choice.helpStudent.cannot" },
+  ],
+};
 
 /**
  * Комнатная 2.5D-сцена школы: фон-кадр, перспектива, переходы с fade,
@@ -69,6 +91,8 @@ export class SchoolScene extends Phaser.Scene {
   private minimap!: MinimapSystem;
   private perspectiveDebug!: PerspectiveDebugSystem;
   private scenarioState!: ScenarioState;
+  /** здание: раскладки, спутник, реплики, геометрия */
+  private pack!: ScenarioPack;
 
   private layout!: RoomLayout;
   private roomObjects: Phaser.GameObjects.GameObject[] = [];
@@ -137,6 +161,28 @@ export class SchoolScene extends Phaser.Scene {
   /** остаток принудительной блокировки управления, мс */
   private controlLockMs = 0;
   private busUnsubscribes: Array<() => void> = [];
+  /** уборка уже выполнена (SHUTDOWN и DESTROY могут прийти оба) */
+  private tornDown = false;
+
+  /** пропы комнаты, завязанные на события (огонь, крышка, полотенца) */
+  private eventProps: Array<{
+    def: RoomProp;
+    img: Phaser.GameObjects.Image;
+  }> = [];
+  /** выходы, у которых уже нарисован маркер */
+  private markedExits = new Set<string>();
+  /** одноразовые хотспоты, уже использованные (room:id) */
+  private usedInteractables = new Set<string>();
+  /** зоны выбора, уже пройденные в этом прохождении */
+  private choiceZonesDone = new Set<string>();
+  /** открыт вопрос зоны выбора — управление ждёт ответа */
+  private awaitingChoice = false;
+  /** выход с паузой уже запущен (балкон) */
+  private exitBeatPending = false;
+  /** игрок пригнулся в дыму */
+  private crouched = false;
+  /** игрок идёт в полный рост в дыму: пелена и замедление */
+  private uprightInSmoke = false;
 
   constructor() {
     super("SchoolScene");
@@ -146,12 +192,15 @@ export class SchoolScene extends Phaser.Scene {
     const scenario = this.registry.get(
       REGISTRY_SCENARIO_KEY,
     ) as ScenarioDefinition;
+    this.pack = this.registry.get(REGISTRY_PACK_KEY) as ScenarioPack;
+    setCalmVoiceNames(this.pack.calmVoices);
 
     this.timeUpFired = false;
     this.transitioning = false;
     this.scriptedBusy = false;
     this.controlLockMs = 0;
     this.busUnsubscribes = [];
+    this.tornDown = false;
     this.roomObjects = [];
     this.inDangerZone = false;
     this.smokeSeen = false;
@@ -181,6 +230,14 @@ export class SchoolScene extends Phaser.Scene {
     this.smokeMoveFactor = 1;
     this.smokeMuffle = 0;
     this.stairsPushSlowMs = 0;
+    this.eventProps = [];
+    this.markedExits = new Set();
+    this.usedInteractables = new Set();
+    this.choiceZonesDone = new Set();
+    this.awaitingChoice = false;
+    this.exitBeatPending = false;
+    this.crouched = false;
+    this.uprightInSmoke = false;
     this.scenarioState = createScenarioState();
 
     this.inputController = new InputController(this);
@@ -194,6 +251,7 @@ export class SchoolScene extends Phaser.Scene {
       scenario,
       this.telemetry,
       this.scenarioState,
+      this.pack.policy,
     );
     this.telemetry.setClock(() => this.engine.elapsedMs());
     this.fx = new EnvironmentFxSystem(this);
@@ -202,7 +260,7 @@ export class SchoolScene extends Phaser.Scene {
     // повторим на первом решении. Стартовые лупы греем заранее.
     this.ambientAudio.ensureUnlocked();
     audioManager.preload(AUDIO_STATES.alarm_start.loops.map((l) => l.url));
-    this.crowd = new CrowdSystem(this);
+    this.crowd = new CrowdSystem(this, this.pack);
     this.minimap = new MinimapSystem();
     this.perspectiveDebug = new PerspectiveDebugSystem(this);
     this.perspectiveDebug.setEnabled(
@@ -276,6 +334,7 @@ export class SchoolScene extends Phaser.Scene {
     this.updateFallbackHints(delta);
     this.updateDangerLinger(delta);
     this.updateSmokeProximityFeel(delta);
+    this.updateChoiceZones();
     if (this.roomEnterGraceMs <= 0) this.checkAutoExits();
 
     this.interactions.update(this.player.x, this.player.y);
@@ -341,7 +400,13 @@ export class SchoolScene extends Phaser.Scene {
     }
 
     if (targetIdx > currentIdx) {
-      const order: SmokeStage[] = ["none", "distant", "light", "medium", "blocked"];
+      const order: SmokeStage[] = [
+        "none",
+        "distant",
+        "light",
+        "medium",
+        "blocked",
+      ];
       this.advanceSmokeStage(order[targetIdx]);
     }
   }
@@ -352,7 +417,10 @@ export class SchoolScene extends Phaser.Scene {
     this.smokeStage = stage;
     this.fx.setSmokeStage(stage);
 
-    if (smokeStageIndex(stage) >= smokeStageIndex("medium") && !this.redirectFired) {
+    if (
+      smokeStageIndex(stage) >= smokeStageIndex("medium") &&
+      !this.redirectFired
+    ) {
       this.redirectFired = true;
       this.smokeSeen = true;
       this.engine.dispatchEvent("route_smoke_warning", {
@@ -410,7 +478,13 @@ export class SchoolScene extends Phaser.Scene {
    * при переходе (см. transitionTo) — эту ошибку можно исправить в холле.
    */
   private updateCorridorAssess(delta: number): void {
-    if (this.layout.id !== "corridor" || this.corridorAssessed) return;
+    if (
+      this.layout.id !== "corridor" ||
+      this.corridorAssessed ||
+      this.pack.mechanics?.corridorAssess === false
+    ) {
+      return;
+    }
 
     this.corridorRoomMs += delta;
     this.corridorMinY = Math.min(this.corridorMinY, this.player.y);
@@ -421,9 +495,11 @@ export class SchoolScene extends Phaser.Scene {
     const pausedBriefly = this.corridorStillMs >= 1100;
     const noticedDistantSmoke =
       this.corridorStillMs >= 500 &&
-      this.player.y <= 460 &&
-      this.player.x >= 520 &&
-      this.player.x <= 800;
+      this.rectContains(
+        this.pack.geometry.corridorViewRect,
+        this.player.x,
+        this.player.y,
+      );
 
     if (!pausedBriefly && !noticedDistantSmoke) return;
 
@@ -446,11 +522,15 @@ export class SchoolScene extends Phaser.Scene {
     // Знак запасного выхода — только через interaction hotspot (не auto-zone).
 
     // Дым замечен издалека: стадия light+, игрок далеко от главного выхода.
-    if (!this.smokeNoticedFar && smokeStageIndex(this.smokeStage) >= smokeStageIndex("light")) {
+    if (
+      !this.smokeNoticedFar &&
+      smokeStageIndex(this.smokeStage) >= smokeStageIndex("light")
+    ) {
       const prog = this.layout.smokeProgression;
       const farFromSmoke =
-        this.player.y >= 560 &&
-        (!prog || !this.rectContains(prog.approachRect, this.player.x, this.player.y));
+        this.player.y >= this.pack.geometry.hallFarFromSmokeMinY &&
+        (!prog ||
+          !this.rectContains(prog.approachRect, this.player.x, this.player.y));
       if (farFromSmoke) {
         this.smokeNoticedFarMs += delta;
         if (this.smokeNoticedFarMs >= 800) {
@@ -499,12 +579,13 @@ export class SchoolScene extends Phaser.Scene {
     });
     this.revealSafeRouteHints();
 
-    // Короткая пауза + мягкий отвод от опасной зоны (к центру холла).
+    // Короткая пауза + мягкий отвод от опасной зоны (направление — из пакета).
+    const push = this.pack.geometry.interventionPush;
     this.controlLockMs = 700;
     this.tweens.add({
       targets: this.player,
-      x: this.player.x + 64,
-      y: Math.min(this.player.y + 36, this.layout.walk.yBottom - 4),
+      x: this.player.x + push.x,
+      y: Math.min(this.player.y + push.y, this.layout.walk.yBottom - 4),
       duration: 320,
       ease: "Sine.easeOut",
       onUpdate: () => {
@@ -520,7 +601,8 @@ export class SchoolScene extends Phaser.Scene {
     return (
       this.scenarioState.firstDecision === null ||
       this.scriptedBusy ||
-      this.controlLockMs > 0
+      this.controlLockMs > 0 ||
+      this.awaitingChoice
     );
   }
 
@@ -533,13 +615,14 @@ export class SchoolScene extends Phaser.Scene {
   }
 
   private playerScaleAt(y: number): number {
-    return scaleAtDepth(
+    const scale = scaleAtDepth(
       this.layout.perspective,
       y,
       this.layout.playerRole,
       this.player.height,
       0.94,
     );
+    return this.crouched ? scale * CROUCH_HEIGHT : scale;
   }
 
   /** Точка ног внутри непроходимой мебели? */
@@ -576,7 +659,9 @@ export class SchoolScene extends Phaser.Scene {
       ) {
         // После перехода в calm lane поток ощущается спокойнее.
         const base = zone.factor;
-        return this.scenarioState.tookCalmLane ? Math.min(1, base + 0.22) : base;
+        return this.scenarioState.tookCalmLane
+          ? Math.min(1, base + 0.22)
+          : base;
       }
     }
     return 1;
@@ -591,7 +676,8 @@ export class SchoolScene extends Phaser.Scene {
       (0.5 + 0.5 * norm) *
       this.slowFactorAt(this.player.x, this.player.y) *
       this.smokeMoveFactor *
-      pushSlow;
+      pushSlow *
+      (this.crouched ? 0.8 : 1);
 
     const dt = delta / 1000;
     const dx = move.x * speed * dt;
@@ -642,7 +728,8 @@ export class SchoolScene extends Phaser.Scene {
             ? "down"
             : "up";
       this.direction = dir;
-      this.player.anims.play(PLAYER_ANIM[dir], true);
+      if (this.crouched) this.applyCrouchPose(true);
+      else this.player.anims.play(PLAYER_ANIM[dir], true);
       this.moving = true;
     } else {
       this.stopWalkAnimation();
@@ -653,6 +740,10 @@ export class SchoolScene extends Phaser.Scene {
     if (!this.moving) return;
     this.moving = false;
     this.player.anims.stop();
+    if (this.crouched) {
+      this.applyCrouchPose(false);
+      return;
+    }
     this.player.setTexture(PLAYER_TEX.idle[this.direction]);
     this.player.setOrigin(0.5, 1);
     this.player.setScale(this.playerScaleAt(this.player.y));
@@ -670,8 +761,14 @@ export class SchoolScene extends Phaser.Scene {
     this.roomObjects = [];
     this.propByKey.clear();
     this.exitMarkers = [];
+    this.eventProps = [];
+    this.markedExits.clear();
 
-    this.layout = ROOM_LAYOUTS[roomId];
+    const nextLayout = this.pack.layouts[roomId];
+    if (!nextLayout) {
+      throw new Error(`Пакет ${this.pack.id}: нет комнаты ${roomId}`);
+    }
+    this.layout = nextLayout;
     const layout = this.layout;
 
     const bg = this.add
@@ -689,42 +786,14 @@ export class SchoolScene extends Phaser.Scene {
       img.setScale(prop.height / img.height);
       this.roomObjects.push(img);
       this.propByKey.set(prop.textureKey, img);
-    }
-
-    const routeHint = shouldRevealSafeRouteHint({
-      routeEvidence: this.scenarioState.routeEvidence,
-      teacherInterventions: this.scenarioState.teacherInterventions,
-      fallbackHint: this.fallbackHint,
-    });
-
-    for (const exit of layout.exits) {
-      this.interactions.register({
-        id: exit.id,
-        x: exit.at.x,
-        y: exit.at.y,
-        radius: exit.radius,
-        labelKey: exit.labelKey,
-        onInteract: () => {
-          this.telemetry.record(
-            exit.telemetryEvent,
-            this.player.x,
-            this.player.y,
-            { room: layout.id },
-          );
-          if (exit.telemetryEvent === "used_emergency_exit") {
-            this.engine.dispatchEvent("used_emergency_exit", exit.at);
-          }
-          this.transitionTo(exit.target, exit.spawn);
-        },
-      });
-      // Запасной выход в холле — без зелёного маркера до решения игрока.
-      if (exit.id === "side_exit_door") {
-        if (routeHint) {
-          this.addExitMarker(exit.at.x, exit.at.y, false, "safe");
-          this.safeRouteHintShown = true;
-        }
-      } else {
-        this.addExitMarker(exit.at.x, exit.at.y, false, "safe");
+      if (prop.showOnEvents || prop.hideOnEvents || prop.fire) {
+        const hidden =
+          (prop.showOnEvents &&
+            !prop.showOnEvents.some((e) => this.engine.hasEvent(e))) ||
+          (prop.hideOnEvents ?? []).some((e) => this.engine.hasEvent(e));
+        img.setVisible(!hidden);
+        if (prop.fire && !hidden) this.startFireFlicker(img);
+        this.eventProps.push({ def: prop, img });
       }
     }
 
@@ -738,33 +807,20 @@ export class SchoolScene extends Phaser.Scene {
       );
     }
 
-    for (const hotspot of layout.hotspots) {
-      this.interactions.register({
-        id: hotspot.id,
-        x: hotspot.at.x,
-        y: hotspot.at.y,
-        radius: hotspot.radius,
-        labelKey: hotspot.labelKey,
-        onInteract: () => {
-          if (hotspot.id === "ask_teacher") {
-            if (hotspot.once) this.interactions.unregister(hotspot.id);
-            // Interaction-label и есть вопрос; ответ учителя — сразу.
-            this.applyTeacherAsk();
-            return;
-          }
-          this.engine.dispatchEvent(hotspot.scenarioEvent, hotspot.at);
-          if (hotspot.once) this.interactions.unregister(hotspot.id);
-        },
-      });
-    }
+    this.refreshInteractables();
 
     const spawn =
-      explicitPos ?? (spawnId ? layout.spawns[spawnId] : undefined) ??
+      explicitPos ??
+      (spawnId ? layout.spawns[spawnId] : undefined) ??
       Object.values(layout.spawns)[0];
     const clamped = clampToWalk(layout.walk, spawn.x, spawn.y);
     this.player.setPosition(clamped.x, clamped.y);
     this.player.setScale(this.playerScaleAt(clamped.y));
     this.player.setDepth(clamped.y);
+    // Поза «пригнувшись» и пелена «в полный рост» живут только в своей комнате.
+    this.crouched = false;
+    this.uprightInSmoke = false;
+    this.player.setAngle(0).setFlipX(false);
     this.direction = roomId === "stairs" ? "left" : "up";
     this.moving = true;
     this.stopWalkAnimation();
@@ -824,12 +880,16 @@ export class SchoolScene extends Phaser.Scene {
     this.engine.setActiveRoom(roomId);
     this.ambientAudio.setState(this.roomAudioState(roomId));
     this.minimap.roomChanged(roomId);
-    if (layout.objectiveKey) {
-      eventBus.emit("objective:changed", { objectiveKey: layout.objectiveKey });
+    const objectiveKey =
+      [...(layout.objectiveKeyAfter ?? [])]
+        .reverse()
+        .find((o) => this.engine.hasEvent(o.event))?.key ?? layout.objectiveKey;
+    if (objectiveKey) {
+      eventBus.emit("objective:changed", { objectiveKey });
     }
     eventBus.emit("scenario:event", {
       id: `enter_${roomId}`,
-      messageKey: ROOM_ENTER_MESSAGE[roomId],
+      messageKey: this.pack.roomEnterMessage[roomId],
       severity: "info",
     });
 
@@ -844,6 +904,288 @@ export class SchoolScene extends Phaser.Scene {
         });
       });
     }
+  }
+
+  /**
+   * Регистрирует выходы и хотспоты комнаты, чьи условия выполнены сейчас.
+   * Вызывается при входе в комнату и после каждого события сценария:
+   * условные объекты (полотенца, телефон, балкон) появляются по ходу игры.
+   */
+  private refreshInteractables(): void {
+    const layout = this.layout;
+    const routeHint = shouldRevealSafeRouteHint({
+      routeEvidence: this.scenarioState.routeEvidence,
+      teacherInterventions: this.scenarioState.teacherInterventions,
+      fallbackHint: this.fallbackHint,
+    });
+
+    for (const exit of layout.exits) {
+      if (!this.conditionsMet(exit)) {
+        this.interactions.unregister(exit.id);
+        continue;
+      }
+      this.interactions.register({
+        id: exit.id,
+        x: exit.at.x,
+        y: exit.at.y,
+        radius: exit.radius,
+        labelKey: exit.labelKey,
+        onInteract: () => this.useExit(exit),
+      });
+      if (this.markedExits.has(exit.id)) continue;
+      // Запасной выход в холле — без зелёного маркера до решения игрока.
+      if (exit.id === "side_exit_door") {
+        if (routeHint) {
+          this.markedExits.add(exit.id);
+          this.addExitMarker(exit.at.x, exit.at.y, false, "safe");
+          this.safeRouteHintShown = true;
+        }
+      } else {
+        this.markedExits.add(exit.id);
+        this.addExitMarker(exit.at.x, exit.at.y, false, "safe");
+      }
+    }
+
+    for (const hotspot of layout.hotspots) {
+      const key = `${layout.id}:${hotspot.id}`;
+      const used =
+        this.usedInteractables.has(key) ||
+        (hotspot.once && this.engine.hasEvent(hotspot.scenarioEvent));
+      if (used || !this.conditionsMet(hotspot)) {
+        this.interactions.unregister(hotspot.id);
+        continue;
+      }
+      this.interactions.register({
+        id: hotspot.id,
+        x: hotspot.at.x,
+        y: hotspot.at.y,
+        radius: hotspot.radius,
+        labelKey: hotspot.labelKey,
+        onInteract: () => {
+          if (hotspot.once) {
+            this.usedInteractables.add(key);
+            this.interactions.unregister(hotspot.id);
+          }
+          if (hotspot.id === "ask_teacher") {
+            // Interaction-label и есть вопрос; ответ учителя — сразу.
+            this.applyTeacherAsk();
+            return;
+          }
+          this.engine.dispatchEvent(hotspot.scenarioEvent, hotspot.at);
+        },
+      });
+    }
+  }
+
+  private conditionsMet(item: {
+    requires?: string;
+    requiresNot?: string;
+  }): boolean {
+    if (item.requires && !this.engine.hasEvent(item.requires)) return false;
+    if (item.requiresNot && this.engine.hasEvent(item.requiresNot)) {
+      return false;
+    }
+    return true;
+  }
+
+  /** Переход через выход: проверки, событие, при необходимости — пауза. */
+  private useExit(exit: RoomExit): void {
+    if (this.transitioning || this.exitBeatPending) return;
+    const layout = this.layout;
+    if (exit.scenarioEvent !== exit.telemetryEvent) {
+      this.telemetry.record(exit.telemetryEvent, this.player.x, this.player.y, {
+        room: layout.id,
+      });
+    }
+    if (exit.warnIfMissing && !this.engine.hasEvent(exit.warnIfMissing.event)) {
+      this.engine.dispatchEvent(exit.warnIfMissing.riskEvent, exit.at);
+    }
+    if (exit.telemetryEvent === "used_emergency_exit") {
+      this.engine.dispatchEvent("used_emergency_exit", exit.at);
+    }
+    if (exit.scenarioEvent) {
+      this.engine.dispatchEvent(exit.scenarioEvent, exit.at);
+    }
+    if (!exit.beat) {
+      this.transitionTo(exit.target, exit.spawn);
+      return;
+    }
+    // Пауза-ожидание: игрок подходит к двери, сообщение, затем переход.
+    const beat = exit.beat;
+    this.exitBeatPending = true;
+    this.controlLockMs = beat.ms + 600;
+    this.interactions.clearAll();
+    this.stopWalkAnimation();
+    this.tweens.add({
+      targets: this.player,
+      x: exit.at.x,
+      y: exit.at.y,
+      duration: 700,
+      ease: "Sine.easeInOut",
+      onUpdate: () => {
+        this.player.setScale(this.playerScaleAt(this.player.y));
+        this.player.setDepth(this.player.y);
+      },
+    });
+    eventBus.emit("scenario:event", {
+      id: `beat_${exit.id}`,
+      messageKey: beat.messageKey,
+      severity: "info",
+    });
+    this.time.delayedCall(beat.ms, () => {
+      this.exitBeatPending = false;
+      this.transitionTo(exit.target, exit.spawn);
+    });
+  }
+
+  /** Пропы, которые появляются/исчезают по событию (крышка, полотенца). */
+  private applyEventProps(eventId: string): void {
+    for (const { def, img } of this.eventProps) {
+      if (def.fire) continue; // огонь гасит/раздувает первое решение
+      if (def.showOnEvents?.includes(eventId) && !img.visible) {
+        img.setVisible(true).setAlpha(0);
+        this.tweens.add({
+          targets: img,
+          alpha: 1,
+          delay: def.showDelayMs ?? 0,
+          duration: 420,
+        });
+      }
+      if (def.hideOnEvents?.includes(eventId) && img.visible) {
+        this.tweens.add({
+          targets: img,
+          alpha: 0,
+          duration: 320,
+          onComplete: () => img.setVisible(false),
+        });
+      }
+    }
+  }
+
+  private startFireFlicker(img: Phaser.GameObjects.Image): void {
+    const base = img.scaleX;
+    this.tweens.add({
+      targets: img,
+      scaleY: { from: base * 0.92, to: base * 1.1 },
+      scaleX: { from: base * 1.03, to: base * 0.96 },
+      alpha: { from: 0.86, to: 1 },
+      duration: 170,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+  }
+
+  /**
+   * Огонь на плите после первого решения: крышка — пламя гаснет без
+   * кислорода; вода — вспышка до потолка, затем огонь опадает.
+   */
+  private extinguishFire(flare: boolean): void {
+    for (const { def, img } of this.eventProps) {
+      if (!def.fire || !img.visible) continue;
+      this.tweens.killTweensOf(img);
+      const base = def.height / img.height;
+      img.setScale(base).setAlpha(1);
+      const puffY = img.y - img.displayHeight * 0.7;
+      if (flare) {
+        this.cameras.main.flash(320, 255, 170, 80);
+        this.cameras.main.shake(420, 0.006);
+        this.tweens.add({
+          targets: img,
+          scaleX: base * 2.4,
+          scaleY: base * 3.4,
+          duration: 240,
+          ease: "Quad.easeOut",
+          onComplete: () =>
+            this.tweens.add({
+              targets: img,
+              alpha: 0,
+              scaleX: base * 1.2,
+              scaleY: base * 1.1,
+              delay: 700,
+              duration: 1500,
+              onComplete: () => img.setVisible(false),
+            }),
+        });
+        this.puffSmoke(img.x, puffY - 60, 1.7);
+      } else {
+        this.tweens.add({
+          targets: img,
+          alpha: 0,
+          scaleY: base * 0.35,
+          duration: 520,
+          ease: "Sine.easeIn",
+          onComplete: () => img.setVisible(false),
+        });
+        this.puffSmoke(img.x, puffY, 0.8);
+      }
+    }
+  }
+
+  private puffSmoke(x: number, y: number, scale: number): void {
+    const puff = this.add
+      .image(x, y, `${FX_TEX.smokeLightPrefix}1`)
+      .setDepth(y + 400)
+      .setAlpha(0)
+      .setScale(scale * 0.4);
+    this.roomObjects.push(puff);
+    this.tweens.add({
+      targets: puff,
+      alpha: { from: 0.75, to: 0 },
+      y: y - 140,
+      scale: scale,
+      duration: 2400,
+      ease: "Sine.easeOut",
+      onComplete: () => puff.destroy(),
+    });
+  }
+
+  /** Вход в зону выбора: короткий вопрос, управление ждёт ответа. */
+  private updateChoiceZones(): void {
+    for (const zone of this.layout.choiceZones ?? []) {
+      if (this.choiceZonesDone.has(zone.id)) continue;
+      if (!this.rectContains(zone.rect, this.player.x, this.player.y)) continue;
+      this.choiceZonesDone.add(zone.id);
+      this.awaitingChoice = true;
+      this.stopWalkAnimation();
+      eventBus.emit("choice:offer", {
+        id: `zone:${zone.id}`,
+        promptKey: zone.promptKey,
+        options: zone.options.map((o) => ({ id: o.id, labelKey: o.labelKey })),
+      });
+      return;
+    }
+  }
+
+  private applyZoneChoice(zoneId: string, optionId: string): void {
+    this.awaitingChoice = false;
+    const zone = this.layout.choiceZones?.find((z) => z.id === zoneId);
+    const option = zone?.options.find((o) => o.id === optionId);
+    if (!option) return;
+    this.engine.dispatchEvent(option.event, {
+      x: this.player.x,
+      y: this.player.y,
+    });
+    if (option.effect === "crouch") {
+      this.crouched = true;
+      this.applyCrouchPose(false);
+    } else if (option.effect === "upright") {
+      this.uprightInSmoke = true;
+      this.cameras.main.shake(160, 0.002);
+    }
+  }
+
+  /** Поза «пригнувшись, рот закрыт тканью»: один кадр + покачивание. */
+  private applyCrouchPose(moving: boolean): void {
+    const side = this.direction !== "up";
+    this.player.anims.stop();
+    this.player.setTexture(
+      side ? PLAYER_TEX.crouch.side : PLAYER_TEX.crouch.back,
+    );
+    this.player.setFlipX(this.direction === "right");
+    this.player.setOrigin(0.5, 1);
+    this.player.setAngle(moving ? Math.sin(this.time.now / 90) * 2.5 : 0);
+    this.player.setScale(this.playerScaleAt(this.player.y));
   }
 
   private addExitMarker(
@@ -945,14 +1287,11 @@ export class SchoolScene extends Phaser.Scene {
 
   private offerStudentHelpChoice(): void {
     if (this.scenarioState.studentHelpChoice !== null) return;
+    const help = this.pack.helpChoice ?? DEFAULT_HELP_CHOICE;
     eventBus.emit("choice:offer", {
       id: "help_student",
-      promptKey: "choice.helpStudent.prompt",
-      options: [
-        { id: "companion", labelKey: "choice.helpStudent.together" },
-        { id: "referred", labelKey: "choice.helpStudent.waitTeacher" },
-        { id: "declined", labelKey: "choice.helpStudent.cannot" },
-      ],
+      promptKey: help.promptKey,
+      options: help.options,
     });
   }
 
@@ -1066,7 +1405,8 @@ export class SchoolScene extends Phaser.Scene {
     }
 
     if (this.layout.id === "stairs" && this.layout.calmLane) {
-      const towardExit = this.player.x < 700;
+      const towardExit =
+        this.player.x < this.pack.geometry.stairsTowardExitMaxX;
       if (!this.moving || towardExit) this.stairsIdleMs += delta;
       else this.stairsIdleMs = 0;
       if (
@@ -1128,7 +1468,10 @@ export class SchoolScene extends Phaser.Scene {
     // Образовательные сигналы на переходах между комнатами.
     if (this.layout.id === "corridor" && target === "central_hall") {
       // Пробежал коридор без заминки — пошёл за потоком не оценив.
-      if (!this.corridorAssessed) {
+      if (
+        !this.corridorAssessed &&
+        this.pack.mechanics?.corridorAssess !== false
+      ) {
         this.engine.dispatchEvent("followed_crowd_without_checking", {
           x: this.player.x,
           y: this.player.y,
@@ -1269,10 +1612,27 @@ export class SchoolScene extends Phaser.Scene {
    */
   private updateSmokeProximityFeel(delta: number): void {
     if (this.layout.id !== "central_hall" || !this.layout.dangerZone) {
-      if (this.smokeMoveFactor < 1 || this.smokeMuffle > 0) {
-        this.smokeMoveFactor = Math.min(1, this.smokeMoveFactor + delta / 350);
-        this.smokeMuffle = Math.max(0, this.smokeMuffle - delta / 350);
-        this.fx.setSmokeProximity(this.smokeMuffle * 0.5);
+      // Вне холла: пелена только у «идущего в полный рост» в дыму.
+      const targetMuffle = this.uprightInSmoke ? 0.55 : 0;
+      const targetMove = this.uprightInSmoke ? 0.8 : 1;
+      if (
+        this.smokeMoveFactor !== targetMove ||
+        this.smokeMuffle !== targetMuffle
+      ) {
+        const step = delta / 350;
+        this.smokeMoveFactor += Phaser.Math.Clamp(
+          targetMove - this.smokeMoveFactor,
+          -step,
+          step,
+        );
+        this.smokeMuffle += Phaser.Math.Clamp(
+          targetMuffle - this.smokeMuffle,
+          -step,
+          step,
+        );
+        this.fx.setSmokeProximity(
+          this.smokeMuffle * (this.uprightInSmoke ? 1.1 : 0.5),
+        );
         this.ambientAudio.setSmokeMuffle(this.smokeMuffle);
       }
       return;
@@ -1295,7 +1655,8 @@ export class SchoolScene extends Phaser.Scene {
     // Отход — быстрее, чем нарастание.
     const recover = !this.inDangerZone && near < 0.2;
     const rate = recover ? delta / 320 : delta / 700;
-    this.smokeMuffle += (targetMuffle - this.smokeMuffle) * Math.min(1, rate * 3);
+    this.smokeMuffle +=
+      (targetMuffle - this.smokeMuffle) * Math.min(1, rate * 3);
     this.smokeMoveFactor +=
       (targetMove - this.smokeMoveFactor) * Math.min(1, rate * 3);
 
@@ -1330,7 +1691,17 @@ export class SchoolScene extends Phaser.Scene {
       y: this.player.y,
     });
 
-    switch (option.id) {
+    const effect = option.effect ?? option.id;
+    // Огонь на плите (квартира): крышка гасит, вода раздувает вспышку.
+    this.extinguishFire(effect === "flare");
+
+    switch (effect) {
+      case "flare":
+        // Вода на горящее масло: вспышка, отскок, потерянное время.
+        this.engine.addPenaltyMs(6000);
+        this.engine.startClock();
+        this.crowd.beginEvacuation();
+        break;
       case "calm":
         // Спокойная реакция: без штрафа, класс организованно выходит.
         this.engine.startClock();
@@ -1360,11 +1731,13 @@ export class SchoolScene extends Phaser.Scene {
     this.scriptedBusy = true;
     const startX = this.player.x;
     const startY = this.player.y;
-    const bag = this.propByKey.get("obj-backpack");
-    const bagX = bag?.x ?? 492;
-    const bagY = bag?.y ?? 636;
+    const { textureKey, fallback } = this.pack.geometry.backpack;
+    const bag = this.propByKey.get(textureKey);
+    const bagX = bag?.x ?? fallback.x;
+    const bagY = bag?.y ?? fallback.y;
 
     this.interactions.unregister("backpack");
+    this.usedInteractables.add(`${this.layout.id}:backpack`);
     this.player.anims.play(PLAYER_ANIM.left, true);
     this.tweens.add({
       targets: this.player,
@@ -1480,13 +1853,15 @@ export class SchoolScene extends Phaser.Scene {
 
   private wireEvents(): void {
     this.events.on(SCENARIO_LOCAL_EVENT, (eventId: string) => {
+      this.applyEventProps(eventId);
+      this.refreshInteractables();
       if (eventId === "smoke_detected") {
         this.fx.setAlarmActive(true);
         this.cameras.main.shake(180, 0.002);
         this.smokeSeen = true;
       }
       if (eventId === "backpack_note") {
-        const bag = this.propByKey.get("obj-backpack");
+        const bag = this.propByKey.get(this.pack.geometry.backpack.textureKey);
         if (bag) {
           this.tweens.add({
             targets: bag,
@@ -1519,7 +1894,10 @@ export class SchoolScene extends Phaser.Scene {
         ) {
           this.ambientAudio.setState("side_corridor");
         }
-        if (this.scenarioState.followedCrowdCorridor && !this.crowdCorrectedFired) {
+        if (
+          this.scenarioState.followedCrowdCorridor &&
+          !this.crowdCorrectedFired
+        ) {
           this.crowdCorrectedFired = true;
           this.engine.dispatchEvent("crowd_following_corrected", {
             x: this.player.x,
@@ -1556,7 +1934,7 @@ export class SchoolScene extends Phaser.Scene {
         // После эвакуации в здание не возвращаются: мягкий отскок от дверей.
         this.tweens.add({
           targets: this.player,
-          x: this.player.x + 56,
+          x: this.player.x + this.pack.geometry.reentryPushX,
           duration: 280,
           ease: "Sine.easeOut",
           onUpdate: () => {
@@ -1583,6 +1961,9 @@ export class SchoolScene extends Phaser.Scene {
     this.busUnsubscribes.push(
       eventBus.on("choice:resolve", ({ id, optionId }) => {
         if (id === "help_student") this.applyStudentHelpChoice(optionId);
+        else if (id.startsWith("zone:")) {
+          this.applyZoneChoice(id.slice("zone:".length), optionId);
+        }
       }),
     );
 
@@ -1641,7 +2022,15 @@ export class SchoolScene extends Phaser.Scene {
       }),
     );
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    // Уборка и при restart сцены (SHUTDOWN), и при уничтожении игры (DESTROY):
+    // game.destroy() на анмаунте Canvas шлёт только DESTROY. Без этого
+    // подписки сцены на шину переживали игру и перехватывали первое решение
+    // следующей (переход школа → ТРЦ, «На главную» → снова в игру).
+    const teardown = () => {
+      this.events.off(Phaser.Scenes.Events.SHUTDOWN, teardown);
+      this.events.off(Phaser.Scenes.Events.DESTROY, teardown);
+      if (this.tornDown) return;
+      this.tornDown = true;
       this.busUnsubscribes.forEach((off) => off());
       this.busUnsubscribes = [];
       this.events.off(SCENARIO_LOCAL_EVENT);
@@ -1652,6 +2041,8 @@ export class SchoolScene extends Phaser.Scene {
       // Restart сцены сам выставит новое состояние; при выгрузке игры
       // (анмаунт Canvas) все лупы останавливаются, контекст переиспользуется.
       this.ambientAudio.destroy();
-    });
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, teardown);
+    this.events.once(Phaser.Scenes.Events.DESTROY, teardown);
   }
 }

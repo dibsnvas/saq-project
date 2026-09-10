@@ -5,21 +5,19 @@ import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { eventBus } from "@/game/EventBus";
 import { audioManager } from "@/game/audio/AudioManager";
-import {
-  shouldShowDecisionOverlay,
-  type PlayPhase,
-} from "@/game/playPhase";
+import { shouldShowDecisionOverlay, type PlayPhase } from "@/game/playPhase";
 import { GameHud } from "./GameHud";
 import { IntroOverlay } from "./IntroOverlay";
 import { DecisionOverlay } from "./DecisionOverlay";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { MobileControls } from "./MobileControls";
 import { OrientationGuard } from "./OrientationGuard";
+import { ScenarioProvider } from "./ScenarioContext";
+import { getScenarioPack } from "@/game/scenarios";
+import type { ScenarioId } from "@/game/scenarios/types";
 
 // Phaser живёт только в браузере: динамический импорт без SSR.
 const GameCanvas = dynamic(() => import("./GameCanvas"), { ssr: false });
-
-const POSTER_SRC = "/assets/backgrounds/classroom_students_poster.jpg";
 
 interface DeviceState {
   coarse: boolean;
@@ -38,8 +36,9 @@ type ScreenOrientationWithLock = ScreenOrientation & {
  * Важно: DecisionOverlay показывается сразу в фазе decision и НЕ ждёт
  * Phaser preload / снятия постера (раньше это давало ~20 с пустого экрана).
  */
-export function PlayClient() {
+export function PlayClient({ scenarioId }: { scenarioId: ScenarioId }) {
   const t = useTranslations();
+  const posterSrc = getScenarioPack(scenarioId).intro.poster;
   const [device, setDevice] = useState<DeviceState | null>(null);
   const [phase, setPhase] = useState<PlayPhase>("intro");
   const [posterVisible, setPosterVisible] = useState(true);
@@ -113,39 +112,41 @@ export function PlayClient() {
   const showDecision = shouldShowDecisionOverlay(phase);
 
   return (
-    <div className="relative h-dvh w-full touch-none overflow-hidden bg-navy-950">
-      {phase !== "intro" && (
-        <>
-          <GameCanvas />
-          <GameHud isTouch={device.coarse} />
-          {device.coarse && phase === "game" && <MobileControls />}
+    <ScenarioProvider id={scenarioId}>
+      <div className="relative h-dvh w-full touch-none overflow-hidden bg-navy-950">
+        {phase !== "intro" && (
+          <>
+            <GameCanvas scenarioId={scenarioId} />
+            <GameHud isTouch={device.coarse} />
+            {device.coarse && phase === "game" && <MobileControls />}
 
-          {/* Постер под DecisionOverlay, пока Phaser грузится */}
-          {posterVisible && (
-            <div
-              className={`pointer-events-none absolute inset-0 z-10 bg-navy-950 transition-opacity duration-500 ${
-                posterFading ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={POSTER_SRC}
-                alt=""
-                className="h-full w-full object-cover opacity-80"
-              />
-            </div>
-          )}
+            {/* Постер под DecisionOverlay, пока Phaser грузится */}
+            {posterVisible && (
+              <div
+                className={`pointer-events-none absolute inset-0 z-10 bg-navy-950 transition-opacity duration-500 ${
+                  posterFading ? "opacity-0" : "opacity-100"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={posterSrc}
+                  alt=""
+                  className="h-full w-full object-cover opacity-80"
+                />
+              </div>
+            )}
 
-          {showDecision && (
-            <DecisionOverlay onChosen={() => setPhase("game")} />
-          )}
-          {phase === "game" && <ChoiceOverlay />}
-        </>
-      )}
+            {showDecision && (
+              <DecisionOverlay onChosen={() => setPhase("game")} />
+            )}
+            {phase === "game" && <ChoiceOverlay />}
+          </>
+        )}
 
-      {phase === "intro" && (
-        <IntroOverlay onDone={() => setPhase("decision")} />
-      )}
-    </div>
+        {phase === "intro" && (
+          <IntroOverlay onDone={() => setPhase("decision")} />
+        )}
+      </div>
+    </ScenarioProvider>
   );
 }

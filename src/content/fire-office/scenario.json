@@ -1,0 +1,244 @@
+{
+  "id": "fire-office",
+  "objectiveKey": "game.objective",
+  "durationSeconds": 180,
+  "startRoom": "classroom",
+  "start": {
+    "x": 640,
+    "y": 630
+  },
+  "introDecision": {
+    "id": "first_reaction",
+    "promptKey": "decision.title",
+    "options": [
+      {
+        "id": "calm",
+        "labelKey": "decision.optionCalm",
+        "event": "followed_teacher_instruction"
+      },
+      {
+        "id": "backpack",
+        "labelKey": "decision.optionBackpack",
+        "event": "returned_for_belongings"
+      },
+      {
+        "id": "rush",
+        "labelKey": "decision.optionRush",
+        "event": "rushed_without_assessing"
+      },
+      {
+        "id": "assess",
+        "labelKey": "decision.optionAssess",
+        "event": "assessed_environment"
+      }
+    ]
+  },
+  "zones": [
+    {
+      "id": "smoke_warning_zone",
+      "room": "central_hall",
+      "rect": {
+        "x": 560,
+        "y": 442,
+        "width": 280,
+        "height": 100
+      },
+      "event": "smoke_detected",
+      "once": true
+    },
+    {
+      "id": "reentry_attempt",
+      "room": "outdoor",
+      "rect": {
+        "x": 40,
+        "y": 440,
+        "width": 260,
+        "height": 140
+      },
+      "event": "attempted_reentry",
+      "once": true
+    },
+    {
+      "id": "crowd_squeeze",
+      "room": "stairs",
+      "rect": {
+        "x": 420,
+        "y": 606,
+        "width": 270,
+        "height": 66
+      },
+      "event": "pushed_through_crowd",
+      "once": true
+    },
+    {
+      "id": "calm_lane",
+      "room": "stairs",
+      "rect": {
+        "x": 760,
+        "y": 664,
+        "width": 360,
+        "height": 40
+      },
+      "event": "took_calm_lane",
+      "once": true
+    },
+    {
+      "id": "assembly_point",
+      "room": "outdoor",
+      "rect": {
+        "x": 880,
+        "y": 470,
+        "width": 360,
+        "height": 170
+      },
+      "event": "reached_assembly",
+      "once": true
+    }
+  ],
+  "events": {
+    "followed_teacher_instruction": {
+      "messageKey": "game.event.followedTeacher",
+      "severity": "info"
+    },
+    "returned_for_belongings": {
+      "messageKey": "game.event.tookBackpack",
+      "severity": "warning"
+    },
+    "rushed_without_assessing": {
+      "messageKey": "game.event.rushed",
+      "severity": "warning"
+    },
+    "assessed_environment": {
+      "messageKey": "game.event.assessed",
+      "severity": "info"
+    },
+    "rush_hesitation": {
+      "messageKey": "game.event.rushHesitation",
+      "severity": "warning"
+    },
+    "smoke_detected": {
+      "messageKey": "game.event.smoke",
+      "severity": "warning"
+    },
+    "route_blocked": {
+      "messageKey": "game.event.routeBlocked",
+      "severity": "danger"
+    },
+    "assessed_corridor": {
+      "messageKey": "game.event.assessedCorridor",
+      "severity": "info"
+    },
+    "followed_crowd_without_checking": {
+      "messageKey": "game.event.followedCrowd",
+      "severity": "warning"
+    },
+    "route_smoke_warning": {
+      "messageKey": "game.event.mainRouteSmoked",
+      "severity": "danger"
+    },
+    "evacuation_plan_checked": {
+      "messageKey": "game.event.planChecked",
+      "severity": "info"
+    },
+    "changed_route_after_smoke": {
+      "messageKey": "game.event.changedRoute",
+      "severity": "info"
+    },
+    "safe_exit_sign_detected": {
+      "messageKey": "game.event.signDetected",
+      "severity": "info"
+    },
+    "teacher_instruction_followed": {
+      "messageKey": "game.event.teacherInstruction",
+      "severity": "info"
+    },
+    "crowd_following_route": {
+      "messageKey": "game.event.crowdReliance",
+      "severity": "warning"
+    },
+    "teacher_intervened": {
+      "messageKey": "game.event.teacherIntervened",
+      "severity": "danger"
+    },
+    "smoke_noticed_from_distance": {
+      "messageKey": "game.event.smokeNoticedFar",
+      "severity": "info"
+    },
+    "smoke_approach_corrected": {
+      "messageKey": "game.event.smokeRetreat",
+      "severity": "info"
+    },
+    "crowd_following_corrected": {
+      "messageKey": "game.event.crowdCorrected",
+      "severity": "info"
+    },
+    "stairs_flow_used": {
+      "severity": "info"
+    },
+    "stairs_pushing_corrected": {
+      "messageKey": "game.event.pushingCorrected",
+      "severity": "info"
+    },
+    "used_emergency_exit": {
+      "messageKey": "game.interact.emergencyExit",
+      "severity": "info"
+    },
+    "attempted_reentry": {
+      "messageKey": "game.event.attemptedReentry",
+      "severity": "warning"
+    },
+    "helped_student": {
+      "messageKey": "game.event.helpedStudent",
+      "severity": "info"
+    },
+    "student_referred_to_teacher": {
+      "messageKey": "game.event.studentReferred",
+      "severity": "info"
+    },
+    "student_help_declined": {
+      "messageKey": "game.event.studentDeclined",
+      "severity": "info"
+    },
+    "ask_teacher_route": {
+      "severity": "info"
+    },
+    "backpack_note": {
+      "messageKey": "game.event.backpackNote",
+      "severity": "warning"
+    },
+    "pushed_through_crowd": {
+      "messageKey": "game.event.pushedCrowd",
+      "severity": "warning"
+    },
+    "took_calm_lane": {
+      "messageKey": "game.event.calmLane",
+      "severity": "info"
+    },
+    "reached_assembly": {
+      "messageKey": "game.event.reachedAssembly",
+      "severity": "info"
+    },
+    "companion_safe": {
+      "messageKey": "game.event.companionSafe",
+      "severity": "info"
+    },
+    "reported_to_teacher": {
+      "severity": "info"
+    },
+    "time_up": {
+      "messageKey": "game.event.timeUp",
+      "severity": "danger"
+    },
+    "crouched_in_smoke": {
+      "messageKey": "game.event.crouched",
+      "severity": "info"
+    },
+    "walked_upright_in_smoke": {
+      "messageKey": "game.event.upright",
+      "severity": "warning"
+    }
+  },
+  "completionTriggers": [
+    "reported_to_teacher"
+  ]
+}

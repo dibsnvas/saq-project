@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import questRaw from "@/content/earthquake/quest.json";
+import { QUESTS, type QuestId } from "@/quest/registry";
 import { correctOptionOf, parseQuest, type QuestOption } from "@/quest/schema";
 import {
   summarizeQuest,
@@ -17,15 +17,13 @@ import { QuestScene, type SceneOutcome } from "./QuestScene";
 import { RoomIcon } from "./RoomIcon";
 
 /**
- * Квест «Землетрясение: правильная реакция»: 10 комнат по схеме
+ * Квест по схеме
  * ситуация → событие → вопрос → выбор → разбор → следующая комната.
  * Решение принимается нажатием на место в кадре (QuestScene); комната без
  * фона откатывается на две кнопки с текстом. Данные — quest.json,
  * тексты — локали, подсчёт итога — quest/scoring.ts.
  */
 
-// Валидируем данные на входе: битый quest.json падает громко и сразу.
-const QUEST = parseQuest(questRaw);
 const TICK_MS = 100;
 /** Сейчас студийные MP3 сцен записаны только для русской локали. */
 const RECORDED_NARRATION_LOCALES = new Set(["ru"]);
@@ -53,8 +51,9 @@ function formatTime(ms: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export function QuestClient() {
+export function QuestClient({ questId }: { questId: QuestId }) {
   const t = useTranslations();
+  const QUEST = QUESTS[questId];
   const [phase, setPhase] = useState<Phase>("room");
   const [index, setIndex] = useState(0);
   const [outcome, setOutcome] = useState<SceneOutcome | null>(null);
@@ -92,7 +91,10 @@ export function QuestClient() {
   const narrationDone = narrationStatus === "done";
   const narrationFailed = narrationStatus === "blocked";
   const questionText = t(room.questionKey);
-  const summary = useMemo(() => summarizeQuest(QUEST, answers), [answers]);
+  const summary = useMemo(
+    () => summarizeQuest(QUEST, answers),
+    [QUEST, answers],
+  );
   const correctOption = useMemo(() => correctOptionOf(room), [room]);
 
   const toggleFullscreen = useCallback(() => {
@@ -114,7 +116,7 @@ export function QuestClient() {
     setBeat(QUEST.rooms[0].intro ? "intro" : "scene");
     setSecondsLeft(QUEST.decisionSeconds);
     setAnswers([]);
-  }, []);
+  }, [QUEST]);
 
   // Сначала звучит реплика сцены с вопросом, и только затем открываются выбор
   // и таймер. При запрете autoplay ждём явного клика, не съедая время игрока.
@@ -195,9 +197,9 @@ export function QuestClient() {
     if (existing) {
       existing.currentTime = 0;
       setNarration({ roomId: room.id, status: "playing" });
-      void existing.play().catch(() =>
-        setNarration({ roomId: room.id, status: "blocked" }),
-      );
+      void existing
+        .play()
+        .catch(() => setNarration({ roomId: room.id, status: "blocked" }));
       return;
     }
     if (!room.voice) return;
@@ -205,17 +207,12 @@ export function QuestClient() {
     const audio = new Audio(`${room.voice}.${locale}.mp3`);
     audio.volume = 0.95;
     narrationRef.current = audio;
-    const finish = () =>
-      setNarration({ roomId: room.id, status: "done" });
-    const fail = () =>
-      setNarration({ roomId: room.id, status: "blocked" });
+    const finish = () => setNarration({ roomId: room.id, status: "done" });
+    const fail = () => setNarration({ roomId: room.id, status: "blocked" });
     audio.addEventListener("ended", finish, { once: true });
     audio.addEventListener("error", fail, { once: true });
     setNarration({ roomId: room.id, status: "playing" });
-    void audio.play().then(
-      () => undefined,
-      fail,
-    );
+    void audio.play().then(() => undefined, fail);
   }, [room.id, room.voice, locale, questionText]);
 
   const startWithoutNarration = useCallback(() => {
@@ -263,7 +260,7 @@ export function QuestClient() {
     }
     setDurationMs(Date.now() - startedAt.current);
     setPhase("result");
-  }, [outcome, beat, room.bridge, isLast, index]);
+  }, [QUEST, outcome, beat, room.bridge, isLast, index]);
 
   // Часы на решение: тикают только пока комната открыта и ответа нет.
   useEffect(() => {
@@ -300,7 +297,7 @@ export function QuestClient() {
       const img = new window.Image();
       img.src = src;
     }
-  }, [phase, index]);
+  }, [QUEST, phase, index]);
 
   // Итог прохождения — в то же локальное хранилище, что и игра.
   // Персональные данные не сохраняются (см. TelemetryRepository).
@@ -319,7 +316,7 @@ export function QuestClient() {
         meta: { correct: a.correct },
       })),
     });
-  }, [phase, answers, durationMs]);
+  }, [QUEST, phase, answers, durationMs]);
 
   // Клавиатура: 1/2 — выбор варианта, Enter/пробел — дальше.
   useEffect(() => {
@@ -402,15 +399,28 @@ export function QuestClient() {
             </div>
           ) : (
             <p className="mt-6 rounded-xl border border-safe/25 bg-safe/10 px-4 py-3 text-sm text-white/90">
-              {t("quest.result.perfect")}
+              {t(QUEST.perfectKey ?? "quest.result.perfect")}
             </p>
           )}
 
           <div className="mt-6 flex flex-wrap gap-2.5">
+            {/* Следующая локация сценария — главное действие после итога. */}
+            {QUEST.next && (
+              <Link
+                href={QUEST.next.href}
+                className="rounded-lg bg-safe px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              >
+                {t(QUEST.next.labelKey)} →
+              </Link>
+            )}
             <button
               type="button"
               onClick={start}
-              className="rounded-lg bg-safe px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              className={
+                QUEST.next
+                  ? "rounded-lg border border-white/20 bg-navy-800/80 px-6 py-2.5 text-sm text-white/85 transition hover:bg-navy-700"
+                  : "rounded-lg bg-safe px-6 py-2.5 text-sm font-semibold text-white transition hover:brightness-110"
+              }
             >
               {t("quest.result.again")}
             </button>
@@ -475,6 +485,7 @@ export function QuestClient() {
           room={room}
           outcome={outcome}
           interactionsEnabled={narrationDone}
+          effect={QUEST.effect ?? "quake"}
           onChoose={(option) => answer(option)}
         />
       ) : (
@@ -663,7 +674,7 @@ export function QuestClient() {
               {timedOut ? (
                 <>
                   <p className="mt-1 text-sm leading-relaxed text-white/90">
-                    {t("quest.timeoutNote")}
+                    {t(QUEST.timeoutNoteKey ?? "quest.timeoutNote")}
                   </p>
                   <p className="mt-1.5 flex gap-2 text-sm leading-relaxed text-white/90">
                     <span className="text-safe">✓</span>

@@ -1,0 +1,164 @@
+{
+  "id": "fire-apartment",
+  "objectiveKey": "game.objective",
+  "durationSeconds": 180,
+  "startRoom": "classroom",
+  "start": {
+    "x": 610,
+    "y": 560
+  },
+  "introDecision": {
+    "id": "pan_fire",
+    "promptKey": "decision.title",
+    "options": [
+      {
+        "id": "lid",
+        "labelKey": "decision.optionLid",
+        "event": "pan_covered",
+        "effect": "calm"
+      },
+      {
+        "id": "water",
+        "labelKey": "decision.optionWater",
+        "event": "pan_flared",
+        "effect": "flare"
+      }
+    ]
+  },
+  "zones": [
+    {
+      "id": "smoke_warning_zone",
+      "room": "central_hall",
+      "rect": {
+        "x": 620,
+        "y": 552,
+        "width": 320,
+        "height": 90
+      },
+      "event": "smoke_detected",
+      "once": true
+    },
+    {
+      "id": "reentry_attempt",
+      "room": "outdoor",
+      "rect": {
+        "x": 40,
+        "y": 470,
+        "width": 240,
+        "height": 130
+      },
+      "event": "attempted_reentry",
+      "once": true
+    },
+    {
+      "id": "assembly_point",
+      "room": "outdoor",
+      "rect": {
+        "x": 860,
+        "y": 480,
+        "width": 360,
+        "height": 160
+      },
+      "event": "reached_assembly",
+      "once": true
+    }
+  ],
+  "events": {
+    "pan_covered": {
+      "messageKey": "game.event.panCovered",
+      "severity": "info"
+    },
+    "pan_flared": {
+      "messageKey": "game.event.panFlared",
+      "severity": "danger"
+    },
+    "backpack_note": {
+      "messageKey": "game.event.backpackNote",
+      "severity": "warning"
+    },
+    "helped_student": {
+      "messageKey": "game.event.helpedStudent",
+      "severity": "info"
+    },
+    "student_help_declined": {
+      "messageKey": "game.event.studentDeclined",
+      "severity": "warning"
+    },
+    "door_checked": {
+      "messageKey": "game.event.doorChecked",
+      "severity": "info"
+    },
+    "opened_door_unchecked": {
+      "messageKey": "game.event.doorUnchecked",
+      "severity": "warning"
+    },
+    "smoke_detected": {
+      "messageKey": "game.event.smoke",
+      "severity": "warning"
+    },
+    "route_smoke_warning": {
+      "messageKey": "game.event.mainRouteSmoked",
+      "severity": "danger"
+    },
+    "route_blocked": {
+      "messageKey": "game.event.routeBlocked",
+      "severity": "danger"
+    },
+    "smoke_noticed_from_distance": {
+      "messageKey": "game.event.smokeNoticedFar",
+      "severity": "info"
+    },
+    "smoke_approach_corrected": {
+      "messageKey": "game.event.smokeRetreat",
+      "severity": "info"
+    },
+    "teacher_intervened": {
+      "messageKey": "game.event.teacherIntervened",
+      "severity": "danger"
+    },
+    "teacher_instruction_followed": {
+      "messageKey": "game.event.teacherInstruction",
+      "severity": "info"
+    },
+    "ask_teacher_route": {
+      "severity": "info"
+    },
+    "returned_to_apartment": {
+      "messageKey": "game.event.returnedHome",
+      "severity": "info"
+    },
+    "sealed_door_gaps": {
+      "messageKey": "game.event.sealedDoor",
+      "severity": "info"
+    },
+    "called_rescue": {
+      "messageKey": "game.event.calledRescue",
+      "severity": "info"
+    },
+    "waited_on_balcony": {
+      "severity": "info"
+    },
+    "attempted_reentry": {
+      "messageKey": "game.event.attemptedReentry",
+      "severity": "warning"
+    },
+    "reached_assembly": {
+      "messageKey": "game.event.reachedAssembly",
+      "severity": "info"
+    },
+    "companion_safe": {
+      "messageKey": "game.event.companionSafe",
+      "severity": "info"
+    },
+    "reported_to_teacher": {
+      "severity": "info"
+    },
+    "time_up": {
+      "messageKey": "game.event.timeUp",
+      "severity": "danger"
+    }
+  },
+  "completionTriggers": [
+    "reported_to_teacher"
+  ]
+}

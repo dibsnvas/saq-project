@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import scenarioRaw from "@/content/fire-school/scenario.json";
 import { parseScenario } from "./scenario/schema";
 import {
   GAME_HEIGHT,
@@ -8,8 +7,11 @@ import {
   REGISTRY_DEBUG_COLLISIONS,
   REGISTRY_DEBUG_NPC_PATHS,
   REGISTRY_DEBUG_PERSPECTIVE,
+  REGISTRY_PACK_KEY,
   REGISTRY_SCENARIO_KEY,
 } from "./constants";
+import { DEFAULT_SCENARIO_ID, getScenarioPack } from "./scenarios";
+import type { ScenarioId } from "./scenarios/types";
 import { BootScene } from "./scenes/BootScene";
 import { PreloadScene } from "./scenes/PreloadScene";
 import { SchoolScene } from "./scenes/SchoolScene";
@@ -17,10 +19,14 @@ import { DebriefScene } from "./scenes/DebriefScene";
 
 export * from "./constants";
 
-export function createGame(parent: HTMLElement): Phaser.Game {
+export function createGame(
+  parent: HTMLElement,
+  scenarioId: ScenarioId = DEFAULT_SCENARIO_ID,
+): Phaser.Game {
+  const pack = getScenarioPack(scenarioId);
   // Валидируем данные сценария на входе: битый scenario.json падает громко
   // и сразу, а не тихо посреди прохождения.
-  const scenario = parseScenario(scenarioRaw);
+  const scenario = parseScenario(pack.scenario);
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -40,6 +46,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     callbacks: {
       preBoot: (g) => {
         g.registry.set(REGISTRY_SCENARIO_KEY, scenario);
+        g.registry.set(REGISTRY_PACK_KEY, pack);
         const params =
           typeof window !== "undefined"
             ? new URLSearchParams(window.location.search)

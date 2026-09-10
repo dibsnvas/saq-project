@@ -35,9 +35,9 @@ describe("evaluateScenario — expanded fire route", () => {
     expect(report.companion).toBe("safe");
     expect(report.goodActions.length).toBeGreaterThan(0);
     expect(report.riskyActions).toHaveLength(0);
-    expect(report.timeline.some((e) => e.id === "evacuation_plan_checked")).toBe(
-      true,
-    );
+    expect(
+      report.timeline.some((e) => e.id === "evacuation_plan_checked"),
+    ).toBe(true);
     expect(report.timeline.some((e) => e.id === "exited_building")).toBe(true);
   });
 
@@ -53,9 +53,9 @@ describe("evaluateScenario — expanded fire route", () => {
     });
     expect(report.outcome).toBe("safe");
     expect(report.riskyActions).not.toContain("debrief.rule.planChecked");
-    expect(
-      report.goodActions.some((k) => k.includes("changedRoute")),
-    ).toBe(true);
+    expect(report.goodActions.some((k) => k.includes("changedRoute"))).toBe(
+      true,
+    );
   });
 
   it("plan checked counts as a good route action", () => {
@@ -147,11 +147,7 @@ describe("evaluateScenario — expanded fire route", () => {
 
   it("timeout outdoors before teacher report is timeout", () => {
     const report = evaluateScenario({
-      events: ev([
-        "exited_building",
-        "reached_assembly",
-        "time_up",
-      ]),
+      events: ev(["exited_building", "reached_assembly", "time_up"]),
       success: false,
       timeMs: 180_000,
       firstDecision: "assess",
@@ -387,10 +383,10 @@ describe("branching outcomes", () => {
   });
 
   it("companion safe at assembly", () => {
-    const report = run(
-      ["helped_student", "companion_safe", ...COMPLETION],
-      { companionHelped: true, companionSafe: true },
-    );
+    const report = run(["helped_student", "companion_safe", ...COMPLETION], {
+      companionHelped: true,
+      companionSafe: true,
+    });
     expect(report.profile.companion).toBe("safe_at_assembly");
   });
 
@@ -423,23 +419,17 @@ describe("branching outcomes", () => {
   });
 
   it("reached assembly without report is incomplete", () => {
-    const report = run(
-      [
-        "exited_building",
-        "reached_assembly",
-        "time_up",
-      ],
-      { success: false },
-    );
+    const report = run(["exited_building", "reached_assembly", "time_up"], {
+      success: false,
+    });
     expect(report.profile.outcome).toBe("incomplete");
     expect(report.profile.completion).toBe("needs_review");
   });
 
   it("timeout before outdoor is incomplete", () => {
-    const report = run(
-      ["left_classroom", "entered_central_hall", "time_up"],
-      { success: false },
-    );
+    const report = run(["left_classroom", "entered_central_hall", "time_up"], {
+      success: false,
+    });
     expect(report.profile.outcome).toBe("incomplete");
   });
 

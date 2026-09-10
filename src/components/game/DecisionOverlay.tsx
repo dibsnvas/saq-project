@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { eventBus } from "@/game/EventBus";
-import scenario from "@/content/fire-school/scenario.json";
+import { useScenarioDefinition } from "./ScenarioContext";
 
 /**
  * Первое интерактивное решение после сигнала тревоги. Варианты и события —
@@ -13,7 +13,7 @@ import scenario from "@/content/fire-school/scenario.json";
 export function DecisionOverlay({ onChosen }: { onChosen: () => void }) {
   const t = useTranslations();
   const [chosen, setChosen] = useState(false);
-  const { introDecision } = scenario;
+  const { introDecision } = useScenarioDefinition();
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;

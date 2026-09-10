@@ -2,14 +2,19 @@ import Phaser from "phaser";
 import { eventBus } from "../EventBus";
 import type { ScenarioDefinition, TriggerZone } from "../scenario/schema";
 import type { ScenarioState } from "../scenario/state";
-import { evaluateScenario, type DebriefReport } from "../scenario/evaluator";
+import {
+  evaluateScenario,
+  type DebriefReport,
+  type EvaluationPolicy,
+} from "../scenario/evaluator";
 import type { TelemetrySystem } from "./TelemetrySystem";
 
 /** Локальные события сцены (Phaser-side), чтобы сцена реагировала визуально. */
 export const SCENARIO_LOCAL_EVENT = "saq:scenario-event";
 export const SCENARIO_LOCAL_COMPLETED = "saq:scenario-completed";
 /** Успешный триггер пойман — сцена крутит короткий beat, затем finishPendingCompletion. */
-export const SCENARIO_LOCAL_COMPLETION_PENDING = "saq:scenario-completion-pending";
+export const SCENARIO_LOCAL_COMPLETION_PENDING =
+  "saq:scenario-completion-pending";
 
 export interface ScenarioCompletedLocalPayload {
   timeMs: number;
@@ -45,7 +50,14 @@ export class ScenarioEngine {
     private scenario: ScenarioDefinition,
     private telemetry: TelemetrySystem,
     private state: ScenarioState,
+    /** политика оценки здания; без неё — школьная */
+    private policy?: EvaluationPolicy,
   ) {}
+
+  /** Событие уже случалось в этом прохождении. */
+  hasEvent(eventId: string): boolean {
+    return this.eventLog.includes(eventId);
+  }
 
   getState(): ScenarioState {
     return this.state;
@@ -216,6 +228,7 @@ export class ScenarioEngine {
       companionHelped: this.state.helpedStudent,
       companionSafe: this.state.companionReachedAssembly,
       teacherInterventions: this.state.teacherInterventions,
+      policy: this.policy,
     });
 
     this.telemetry.complete(timeMs);

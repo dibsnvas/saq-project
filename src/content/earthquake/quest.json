@@ -288,7 +288,8 @@
       "outcomes": {
         "stop_open": {
           "image": "/assets/quest/outcome/car-stop_open.jpg",
-          "textKey": "quest.room.car.outcome.stop_open"
+          "textKey": "quest.room.car.outcome.stop_open",
+          "video": "/assets/quest/video/car-stop_open.mp4"
         },
         "jump_out": {
           "image": "/assets/quest/outcome/car-jump_out.jpg",
@@ -336,7 +337,8 @@
       "outcomes": {
         "stay_bed": {
           "image": "/assets/quest/outcome/night-stay_bed.jpg",
-          "textKey": "quest.room.night.outcome.stay_bed"
+          "textKey": "quest.room.night.outcome.stay_bed",
+          "video": "/assets/quest/video/night-stay_bed.mp4"
         },
         "run_dark": {
           "image": "/assets/quest/outcome/night-run_dark.jpg",
@@ -384,7 +386,8 @@
       "outcomes": {
         "gas_off": {
           "image": "/assets/quest/outcome/aftershock-gas_off.jpg",
-          "textKey": "quest.room.aftershock.outcome.gas_off"
+          "textKey": "quest.room.aftershock.outcome.gas_off",
+          "video": "/assets/quest/video/aftershock-gas_off.mp4"
         },
         "light_match": {
           "image": "/assets/quest/outcome/aftershock-light_match.jpg",
@@ -432,7 +435,8 @@
       "outcomes": {
         "calm_guide": {
           "image": "/assets/quest/outcome/help-calm_guide.jpg",
-          "textKey": "quest.room.help.outcome.calm_guide"
+          "textKey": "quest.room.help.outcome.calm_guide",
+          "video": "/assets/quest/video/help-calm_guide.mp4"
         },
         "drag_run": {
           "image": "/assets/quest/outcome/help-drag_run.jpg",
@@ -480,7 +484,8 @@
       "outcomes": {
         "stairs_assembly": {
           "image": "/assets/quest/outcome/evacuation-stairs_assembly.jpg",
-          "textKey": "quest.room.evacuation.outcome.stairs_assembly"
+          "textKey": "quest.room.evacuation.outcome.stairs_assembly",
+          "video": "/assets/quest/video/evacuation-stairs_assembly.mp4"
         },
         "elevator_back": {
           "image": "/assets/quest/outcome/evacuation-elevator_back.jpg",

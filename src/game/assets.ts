@@ -20,6 +20,11 @@ export const PLAYER_TEX = {
     left: "player-idle-left",
     right: "player-idle-right",
   },
+  /** «пригнувшись, рот закрыт тканью» — грузит пакет офиса */
+  crouch: {
+    back: "player-crouch-back",
+    side: "player-crouch-side",
+  },
   walkPrefix: {
     up: "player-walk-back-",
     down: "player-walk-front-",
@@ -78,41 +83,24 @@ export const FX_ANIM = {
   smokeLight: "fx-anim-smoke-light",
 } as const;
 
-interface AssetEntry {
+export interface AssetEntry {
   key: string;
   url: string;
 }
 
-/** Полный манифест загрузки для PreloadScene. */
-export function buildManifest(): AssetEntry[] {
+/**
+ * Манифест загрузки для PreloadScene: общие ассеты (игрок, объекты, дым)
+ * плюс ассеты здания из пакета сценария — фоны, NPC и его пропы.
+ */
+export function buildManifest(scenarioAssets: AssetEntry[]): AssetEntry[] {
   const entries: AssetEntry[] = [
-    { key: BG.classroom, url: "assets/backgrounds/classroom_start.jpg" },
-    { key: BG.corridor, url: "assets/backgrounds/corridor_main.jpg" },
-    { key: BG.centralHall, url: "assets/backgrounds/central_hall_empty.png" },
-    { key: BG.stairs, url: "assets/backgrounds/stairs_emergency.jpg" },
-    { key: BG.vestibule, url: "assets/backgrounds/vestibule_empty.png" },
-    { key: BG.outdoor, url: "assets/backgrounds/exit_assembly.jpg" },
-
+    ...scenarioAssets,
     { key: PLAYER_TEX.idle.up, url: "assets/player/player_idle_back.png" },
     { key: PLAYER_TEX.idle.down, url: "assets/player/player_idle_front.png" },
     { key: PLAYER_TEX.idle.left, url: "assets/player/player_idle_left.png" },
     { key: PLAYER_TEX.idle.right, url: "assets/player/player_idle_right.png" },
 
-    { key: NPC_TEX.groupAssembly, url: "assets/npc/npc_group_assembly.png" },
-    { key: NPC_TEX.groupEvacuating, url: "assets/npc/npc_group_evacuating.png" },
-    // Очищенный от серо-белого мата кадр (исходник — saq_assets_ready).
-    { key: NPC_TEX.pairWalking, url: "assets/npc/processed/npc_pair_walking.png" },
-    { key: NPC_TEX.girlConfused, url: "assets/npc/npc_student_girl_confused.png" },
-    { key: NPC_TEX.girlIdle, url: "assets/npc/npc_student_girl_idle.png" },
-    { key: NPC_TEX.girlWalk, url: "assets/npc/npc_student_girl_walk.png" },
-    { key: NPC_TEX.boyIdle, url: "assets/npc/npc_student_boy_idle.png" },
-    { key: NPC_TEX.boyPointing, url: "assets/npc/npc_student_boy_pointing.png" },
-    { key: NPC_TEX.boyWalk, url: "assets/npc/npc_student_boy_walk.png" },
-    { key: NPC_TEX.teacherIdle, url: "assets/npc/npc_teacher_idle.png" },
-    { key: NPC_TEX.teacherWalk, url: "assets/npc/npc_teacher_walk.png" },
-
     { key: OBJECT_TEX.assemblySign, url: "assets/objects/assembly_point_sign.png" },
-    { key: OBJECT_TEX.backpack, url: "assets/objects/backpack_object.png" },
     { key: OBJECT_TEX.doorClosed, url: "assets/objects/door_closed.png" },
     { key: OBJECT_TEX.doorOpen, url: "assets/objects/door_open.png" },
     { key: OBJECT_TEX.exitSign, url: "assets/objects/exit_sign.png" },

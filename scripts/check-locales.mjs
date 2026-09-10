@@ -12,6 +12,21 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PAIRS = [
   ["src/messages/ru.json", "src/messages/kk.json"],
   ["src/content/fire-school/ru.json", "src/content/fire-school/kk.json"],
+  ["src/content/fire-mall/ru.json", "src/content/fire-mall/kk.json"],
+  ["src/content/fire-apartment/ru.json", "src/content/fire-apartment/kk.json"],
+  ["src/content/fire-office/ru.json", "src/content/fire-office/kk.json"],
+  [
+    "src/content/fire-mall/messages.ru.json",
+    "src/content/fire-mall/messages.kk.json",
+  ],
+  [
+    "src/content/fire-apartment/messages.ru.json",
+    "src/content/fire-apartment/messages.kk.json",
+  ],
+  [
+    "src/content/fire-office/messages.ru.json",
+    "src/content/fire-office/messages.kk.json",
+  ],
 ];
 
 function collectKeys(value, prefix = "") {

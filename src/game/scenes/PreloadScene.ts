@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { GAME_HEIGHT, GAME_WIDTH, PALETTE } from "../constants";
+import { GAME_HEIGHT, GAME_WIDTH, PALETTE, REGISTRY_PACK_KEY } from "../constants";
+import type { ScenarioPack } from "../scenarios/types";
 import {
   buildManifest,
   FX_ANIM,
@@ -26,7 +27,8 @@ export class PreloadScene extends Phaser.Scene {
   preload(): void {
     this.drawProgressBar();
     this.load.setPath("/");
-    for (const entry of buildManifest()) {
+    const pack = this.registry.get(REGISTRY_PACK_KEY) as ScenarioPack;
+    for (const entry of buildManifest(pack.assets)) {
       this.load.image(entry.key, entry.url);
     }
   }

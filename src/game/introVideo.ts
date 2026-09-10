@@ -1,19 +1,23 @@
 /**
  * Выбор файла интро-ролика по локали.
  *
- * Ролик — живая запись урока со звуком, поэтому язык записи должен совпадать
- * с языком интерфейса: иначе русский игрок слышит казахскую речь. Локаль без
- * собственной версии откатывается на исходный файл.
+ * Ролик может быть живой записью со звуком, поэтому язык записи должен
+ * совпадать с языком интерфейса. Локаль без собственной версии откатывается
+ * на исходный файл. Какие файлы есть — задаёт пакет сценария.
  *
  * Общий модуль для страницы (там ролик прогревается через <link rel="preload">)
  * и для IntroOverlay — чтобы прогревался ровно тот файл, который потом играет.
  */
-export const INTRO_VIDEO_DEFAULT = "/videos/fire-school-intro.mp4";
+export interface IntroVideoSpec {
+  /** null — у сценария нет ролика: интро сразу ведёт к первому решению */
+  video: string | null;
+  videoByLocale: Partial<Record<string, string>>;
+}
 
-const INTRO_VIDEO_BY_LOCALE: Record<string, string> = {
-  ru: "/videos/fire-school-intro.ru.mp4",
-};
-
-export function introVideoSrc(locale: string): string {
-  return INTRO_VIDEO_BY_LOCALE[locale] ?? INTRO_VIDEO_DEFAULT;
+export function introVideoSrc(
+  intro: IntroVideoSpec,
+  locale: string,
+): string | null {
+  if (intro.video === null) return null;
+  return intro.videoByLocale[locale] ?? intro.video;
 }

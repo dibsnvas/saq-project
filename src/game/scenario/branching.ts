@@ -9,25 +9,17 @@
  */
 
 export type ScenarioOutcome =
-  | "safe_independent"
-  | "safe_with_guidance"
-  | "safe_with_risks"
-  | "incomplete";
+  "safe_independent" | "safe_with_guidance" | "safe_with_risks" | "incomplete";
 
 /** Допустимые источники информации о безопасном маршруте (central hall). */
 export type RouteEvidence =
-  | "evacuation_plan"
-  | "teacher_instruction"
-  | "safe_exit_sign";
+  "evacuation_plan" | "teacher_instruction" | "safe_exit_sign";
 
 /** Понятные уровни навыка для UI (без псевдоточности вида 87.43). */
 export type SkillLevel = "strong" | "developing" | "needs_review";
 
 export type CompanionOutcome =
-  | "not_helped"
-  | "helped_safely"
-  | "help_attempt_risky"
-  | "safe_at_assembly";
+  "not_helped" | "helped_safely" | "help_attempt_risky" | "safe_at_assembly";
 
 /**
  * Политика вмешательства учителя в central hall. Учитель — страховка,
@@ -67,14 +59,16 @@ export const CORRECTION_POLICY = {
  * fixEvent может приходить и без riskEvent — тогда это просто
  * своевременное безопасное решение.
  */
-export const CORRECTIONS: Array<{
+export interface CorrectionDef {
   id: string;
   /** риск, который исправляется (если встретился) */
   riskEvent: string | null;
   /** событие-исправление ИЛИ пара [риск, более позднее исправление] */
   fixEvent: string;
   messageKey: string;
-}> = [
+}
+
+export const CORRECTIONS: CorrectionDef[] = [
   {
     id: "smoke_retreat",
     riskEvent: "route_blocked",
@@ -162,7 +156,7 @@ export const RISK_FIX: Record<string, string> = {
  * Риски, которые (неисправленными) закрывают путь к safe_independent.
  * attempted_reentry не имеет исправления — возврат в здание всегда критичен.
  */
-export const CRITICAL_RISKS = [
+export const CRITICAL_RISKS: readonly string[] = [
   "route_blocked",
   "pushed_through_crowd",
   "rushed_without_assessing",
@@ -170,7 +164,13 @@ export const CRITICAL_RISKS = [
   "returned_for_belongings",
   "backpack_note",
   "attempted_reentry",
-] as const;
+];
+
+/** События, без которых прохождение не считается завершённым. */
+export const REQUIRED_EVENTS: readonly string[] = [
+  "reported_to_teacher",
+  "reached_assembly",
+];
 
 /**
  * Пороги итога.
@@ -207,6 +207,8 @@ export function scoreDimension(
   seen: ReadonlySet<string>,
   weights: Record<string, number>,
   withCorrectionRefund: boolean,
+  riskFix: Record<string, string> = RISK_FIX,
+  refund: Record<string, number> = CORRECTION_REFUND,
 ): number {
   let score = 0;
   for (const [event, weight] of Object.entries(weights)) {
@@ -215,32 +217,41 @@ export function scoreDimension(
     if (
       withCorrectionRefund &&
       weight < 0 &&
-      RISK_FIX[event] &&
-      seen.has(RISK_FIX[event])
+      riskFix[event] &&
+      seen.has(riskFix[event])
     ) {
-      score += CORRECTION_REFUND[event] ?? 0;
+      score += refund[event] ?? 0;
     }
   }
   return score;
 }
 
 /** Неисправленные критические риски. */
-export function uncorrectedCriticalRisks(seen: ReadonlySet<string>): string[] {
-  return CRITICAL_RISKS.filter((risk) => {
+export function uncorrectedCriticalRisks(
+  seen: ReadonlySet<string>,
+  critical: readonly string[] = CRITICAL_RISKS,
+  riskFix: Record<string, string> = RISK_FIX,
+): string[] {
+  return critical.filter((risk) => {
     if (!seen.has(risk)) return false;
-    const fix = RISK_FIX[risk];
+    const fix = riskFix[risk];
     return !(fix && seen.has(fix));
   });
 }
 
 /** Сработавшие исправления (для дебрифа). */
-export function detectCorrections(seen: ReadonlySet<string>): string[] {
-  return CORRECTIONS.filter((c) => {
-    if (!seen.has(c.fixEvent)) return false;
-    // rush_assessed — исправление только если риск действительно был.
-    if (c.riskEvent && c.id === "rush_assessed") return seen.has(c.riskEvent);
-    return true;
-  }).map((c) => c.messageKey);
+export function detectCorrections(
+  seen: ReadonlySet<string>,
+  corrections: CorrectionDef[] = CORRECTIONS,
+): string[] {
+  return corrections
+    .filter((c) => {
+      if (!seen.has(c.fixEvent)) return false;
+      // rush_assessed — исправление только если риск действительно был.
+      if (c.riskEvent && c.id === "rush_assessed") return seen.has(c.riskEvent);
+      return true;
+    })
+    .map((c) => c.messageKey);
 }
 
 /**
@@ -253,14 +264,14 @@ export function resolveOutcome(input: {
   teacherInterventions: number;
   awarenessScore: number;
   safetyScore: number;
+  requiredEvents?: readonly string[];
+  criticalRisks?: readonly string[];
+  riskFix?: Record<string, string>;
 }): ScenarioOutcome {
   // Обязательные критерии завершения: никакое количество мелких плюсов
   // не компенсирует отсутствие доклада или точки сбора.
-  if (
-    !input.success ||
-    !input.seen.has("reported_to_teacher") ||
-    !input.seen.has("reached_assembly")
-  ) {
+  const required = input.requiredEvents ?? REQUIRED_EVENTS;
+  if (!input.success || required.some((event) => !input.seen.has(event))) {
     return "incomplete";
   }
 
@@ -272,7 +283,11 @@ export function resolveOutcome(input: {
       : "safe_with_risks";
   }
 
-  const critical = uncorrectedCriticalRisks(input.seen);
+  const critical = uncorrectedCriticalRisks(
+    input.seen,
+    input.criticalRisks,
+    input.riskFix,
+  );
   if (
     critical.length === 0 &&
     input.awarenessScore >= OUTCOME_THRESHOLDS.INDEPENDENT_AWARENESS &&

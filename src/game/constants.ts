@@ -14,6 +14,8 @@ export const BASE_ZOOM = 1.06;
 export const PLAYER_SPEED = 300;
 
 export const REGISTRY_SCENARIO_KEY = "scenario";
+/** Пакет сценария (здание): раскладки, ассеты, спутник, геометрия. */
+export const REGISTRY_PACK_KEY = "scenarioPack";
 /** Dev-only: `?debugPerspective=1` — оверлей якорей/высот персонажей. */
 export const REGISTRY_DEBUG_PERSPECTIVE = "debugPerspective";
 /** Dev-only: `?debugCollisions=1` — walkable-зона, препятствия, радиусы. */

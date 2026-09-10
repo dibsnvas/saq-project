@@ -7,10 +7,9 @@ import { audioManager } from "@/game/audio/AudioManager";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Minimap } from "./Minimap";
 import { DebriefPanel } from "./DebriefPanel";
-import scenario from "@/content/fire-school/scenario.json";
+import { useScenarioDefinition, useScenarioPack } from "./ScenarioContext";
 
 const HINT_STORAGE_KEY = "saq.hint.dismissed";
-const TOTAL_MS_DEFAULT = scenario.durationSeconds * 1000;
 
 function formatTime(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -25,9 +24,12 @@ function formatTime(ms: number): string {
  */
 export function GameHud({ isTouch }: { isTouch: boolean }) {
   const t = useTranslations();
+  // Схема мини-карты — шесть комнат школы; квартира её не показывает.
+  const showMinimap = useScenarioPack().minimap !== false;
+  const totalMsDefault = useScenarioDefinition().durationSeconds * 1000;
 
   const [objectiveKey, setObjectiveKey] = useState("game.objective");
-  const [remainingMs, setRemainingMs] = useState(TOTAL_MS_DEFAULT);
+  const [remainingMs, setRemainingMs] = useState(totalMsDefault);
   const [paused, setPaused] = useState(false);
   const [completed, setCompleted] = useState<
     GameEventMap["scenario:completed"] | null
@@ -72,9 +74,7 @@ export function GameHud({ isTouch }: { isTouch: boolean }) {
       eventBus.on("objective:changed", ({ objectiveKey: key }) =>
         setObjectiveKey(key),
       ),
-      eventBus.on("timer:changed", ({ remainingMs: ms }) =>
-        setRemainingMs(ms),
-      ),
+      eventBus.on("timer:changed", ({ remainingMs: ms }) => setRemainingMs(ms)),
       eventBus.on("interaction:available", (payload) =>
         setInteraction(payload),
       ),
@@ -144,7 +144,7 @@ export function GameHud({ isTouch }: { isTouch: boolean }) {
     setToast(null);
     setPaused(false);
     setInteraction(null);
-    setRemainingMs(TOTAL_MS_DEFAULT);
+    setRemainingMs(totalMsDefault);
     setClockStarted(false);
     eventBus.emit("game:restart");
   };
@@ -185,7 +185,9 @@ export function GameHud({ isTouch }: { isTouch: boolean }) {
           {!completed && (
             <button
               type="button"
-              onClick={() => eventBus.emit(paused ? "game:resume" : "game:pause")}
+              onClick={() =>
+                eventBus.emit(paused ? "game:resume" : "game:pause")
+              }
               aria-label={t("hud.pause")}
               className="rounded-lg bg-navy-900/85 px-3 py-2 text-sm backdrop-blur-sm hover:bg-navy-800"
             >
@@ -198,7 +200,7 @@ export function GameHud({ isTouch }: { isTouch: boolean }) {
 
       {/* Мини-карта */}
       <div className="absolute right-3 top-14 sm:right-4">
-        <Minimap />
+        {showMinimap && <Minimap />}
       </div>
 
       {/* Уведомление о событии сценария */}
