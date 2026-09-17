@@ -25,8 +25,6 @@ import { RoomIcon } from "./RoomIcon";
  */
 
 const TICK_MS = 100;
-/** Сейчас студийные MP3 сцен записаны только для русской локали. */
-const RECORDED_NARRATION_LOCALES = new Set(["ru"]);
 
 const GRADE_STYLE: Record<QuestGrade, string> = {
   strong: "text-safe",
@@ -74,6 +72,8 @@ export function QuestClient({ questId }: { questId: QuestId }) {
     roomId: string;
     status: NarrationStatus;
   }>({ roomId: "", status: "loading" });
+  /** Файл озвучки, которого нет (локаль ещё не записана) — тогда синтез браузера. */
+  const [missingVoice, setMissingVoice] = useState<string | null>(null);
 
   // Квест начинается сразу при открытии страницы: засекаем время здесь,
   // а не по кнопке заставки.
@@ -124,22 +124,9 @@ export function QuestClient({ questId }: { questId: QuestId }) {
     if (phase !== "room" || beat !== "scene" || !room.voice) return;
 
     let active = true;
-    setNarration({ roomId: room.id, status: "loading" });
-
-    // Не запрашиваем отсутствующий <room>.kk.mp3. Для этой локали кнопка
-    // запускает системный синтез речи с локализованным текстом вопроса.
-    if (!RECORDED_NARRATION_LOCALES.has(locale)) {
-      setNarration({ roomId: room.id, status: "blocked" });
-      return () => {
-        active = false;
-        if (speechRef.current) {
-          window.speechSynthesis.cancel();
-          speechRef.current = null;
-        }
-      };
-    }
-
-    const audio = new Audio(`${room.voice}.${locale}.mp3`);
+    // Студийная дорожка локали: <сцена>.<locale>.mp3 (ru и kk записаны).
+    const src = `${room.voice}.${locale}.mp3`;
+    const audio = new Audio(src);
     audio.volume = 0.95;
     audio.preload = "auto";
     narrationRef.current = audio;
@@ -149,22 +136,31 @@ export function QuestClient({ questId }: { questId: QuestId }) {
     };
     const finish = () => setStatus("done");
     const fail = () => setStatus("blocked");
+    // Файла нет — кнопка «Включить озвучку» перейдёт на синтез речи браузера.
+    const missing = () => {
+      if (active) setMissingVoice(src);
+      fail();
+    };
     audio.addEventListener("ended", finish);
-    audio.addEventListener("error", fail);
+    audio.addEventListener("error", missing);
     setStatus("playing");
     void audio.play().catch(fail);
 
     return () => {
       active = false;
       audio.removeEventListener("ended", finish);
-      audio.removeEventListener("error", fail);
+      audio.removeEventListener("error", missing);
       audio.pause();
       if (narrationRef.current === audio) narrationRef.current = null;
+      if (speechRef.current) {
+        window.speechSynthesis.cancel();
+        speechRef.current = null;
+      }
     };
   }, [phase, beat, room.id, room.voice, locale]);
 
   const replayNarration = useCallback(() => {
-    if (!RECORDED_NARRATION_LOCALES.has(locale)) {
+    if (missingVoice === `${room.voice}.${locale}.mp3`) {
       if (
         !("speechSynthesis" in window) ||
         typeof SpeechSynthesisUtterance === "undefined"
@@ -213,7 +209,7 @@ export function QuestClient({ questId }: { questId: QuestId }) {
     audio.addEventListener("error", fail, { once: true });
     setNarration({ roomId: room.id, status: "playing" });
     void audio.play().then(() => undefined, fail);
-  }, [room.id, room.voice, locale, questionText]);
+  }, [room.id, room.voice, locale, questionText, missingVoice]);
 
   const startWithoutNarration = useCallback(() => {
     narrationRef.current?.pause();

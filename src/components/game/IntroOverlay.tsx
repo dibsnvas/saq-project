@@ -10,6 +10,44 @@ import { useScenarioPack } from "./ScenarioContext";
 
 const INTRO_SEEN_KEY = "saq.introSeen";
 
+const KEY_CAP =
+  "inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md border border-white/25 bg-white/10 px-1.5 text-xs font-bold text-white shadow-[inset_0_-2px_0_rgba(255,255,255,0.12)]";
+
+/** Короткая справка по управлению — до старта, чтобы не искать её в игре. */
+function ControlsHelp() {
+  const t = useTranslations();
+  return (
+    <div className="w-full max-w-lg rounded-xl border border-white/10 bg-navy-900/75 px-4 py-3 text-left backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-widest text-white/50">
+        {t("intro.controls.title")}
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex shrink-0 items-center gap-1">
+          {["↑", "↓", "←", "→"].map((k) => (
+            <kbd key={k} className={KEY_CAP}>
+              {k}
+            </kbd>
+          ))}
+          <span className="px-1 text-xs text-white/45">
+            {t("intro.controls.or")}
+          </span>
+          {["W", "A", "S", "D"].map((k) => (
+            <kbd key={k} className={KEY_CAP}>
+              {k}
+            </kbd>
+          ))}
+        </div>
+        <p className="text-sm text-white/80">{t("intro.controls.move")}</p>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <kbd className={KEY_CAP}>E</kbd>
+        <p className="text-sm text-white/80">{t("intro.controls.action")}</p>
+      </div>
+      <p className="mt-2 text-xs text-white/45">{t("intro.controls.touch")}</p>
+    </div>
+  );
+}
+
 /** Короткий fade перед DecisionOverlay (часть бюджета ≤800ms). */
 const FADE_MS = 280;
 
@@ -261,6 +299,8 @@ export function IntroOverlay({ onDone }: { onDone: () => void }) {
                 {t("game.title")}
               </h1>
             </div>
+
+            <ControlsHelp />
 
             {stage === "error" && (
               <p className="rounded-lg bg-navy-900/85 px-4 py-2 text-sm text-white/70">

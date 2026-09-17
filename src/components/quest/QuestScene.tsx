@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { QuestOption, QuestRoom } from "@/quest/schema";
 import { hotspotPosition, useCoverRect } from "./useCoverRect";
@@ -11,6 +11,63 @@ import { hotspotPosition, useCoverRect } from "./useCoverRect";
  * пересчитываются от реального прямоугольника кадра, а не от контейнера —
  * иначе на широком мониторе точки уезжают с предметов.
  */
+
+/** Отступ подписи от края экрана и между подписями, px. */
+const EDGE_GAP = 8;
+
+type Box = { left: number; top: number; width: number; height: number };
+
+/**
+ * Раскладка точек на экране: подпись целиком внутри контейнера, а
+ * наложившиеся подписи раздвигаются по вертикали. На телефоне кадр 16:9
+ * сильно обрезан по бокам, и точки у края иначе слипаются и режутся.
+ */
+export function layoutHotspots(
+  items: Box[],
+  container: { width: number; height: number },
+): Array<{ left: number; top: number }> {
+  const clampX = (b: Box) =>
+    Math.min(
+      Math.max(b.left, b.width / 2 + EDGE_GAP),
+      Math.max(
+        b.width / 2 + EDGE_GAP,
+        container.width - b.width / 2 - EDGE_GAP,
+      ),
+    );
+  const clampY = (top: number, h: number) =>
+    Math.min(
+      Math.max(top, h / 2 + EDGE_GAP),
+      Math.max(h / 2 + EDGE_GAP, container.height - h / 2 - EDGE_GAP),
+    );
+  const placed = items.map((b) => ({
+    ...b,
+    left: clampX(b),
+    top: clampY(b.top, b.height),
+  }));
+  const order = placed
+    .map((_, i) => i)
+    .sort((a, b) => placed[a].top - placed[b].top);
+  for (let k = 1; k < order.length; k += 1) {
+    const cur = placed[order[k]];
+    for (let j = 0; j < k; j += 1) {
+      const prev = placed[order[j]];
+      const overlapX =
+        Math.abs(cur.left - prev.left) <
+        (cur.width + prev.width) / 2 + EDGE_GAP;
+      const minDy = (cur.height + prev.height) / 2 + EDGE_GAP;
+      if (overlapX && cur.top - prev.top < minDy) cur.top = prev.top + minDy;
+    }
+  }
+  // Упёрлись в низ экрана — сдвигаем всю стопку вверх.
+  const last = placed[order[order.length - 1]];
+  if (last) {
+    const overflow = last.top + last.height / 2 + EDGE_GAP - container.height;
+    if (overflow > 0) {
+      for (const b of placed) b.top = clampY(b.top - overflow, b.height);
+    }
+  }
+  return placed.map(({ left, top }) => ({ left, top }));
+}
 
 export interface SceneOutcome {
   /** выбранный вариант; null — время вышло */
@@ -42,6 +99,43 @@ export function QuestScene({
     height: cover.height + 2 * cover.top,
   };
 
+  // Размеры подписей меряем после отрисовки: от них зависит раскладка.
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>(
+    {},
+  );
+  const labelsKey = room.options
+    .map((o) => `${o.id}:${t(o.shortLabelKey)}`)
+    .join("|");
+  useLayoutEffect(() => {
+    const next: Record<string, { w: number; h: number }> = {};
+    for (const option of room.options) {
+      const el = buttonRefs.current[option.id];
+      if (el) next[option.id] = { w: el.offsetWidth, h: el.offsetHeight };
+    }
+    setSizes((prev) =>
+      JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
+    );
+  }, [labelsKey, container.width, container.height, room.options]);
+
+  const withHotspot = room.options.filter((o) => o.hotspot);
+  const raw = withHotspot.map((o) => {
+    const pos = hotspotPosition(
+      cover,
+      o.hotspot!.x,
+      o.hotspot!.y,
+      container,
+      0,
+    );
+    const size = sizes[o.id] ?? { w: 0, h: 0 };
+    return { left: pos.left, top: pos.top, width: size.w, height: size.h };
+  });
+  const laidOut = layoutHotspots(raw, container);
+  const positionOf = (id: string) => {
+    const i = withHotspot.findIndex((o) => o.id === id);
+    return i < 0 ? null : laidOut[i];
+  };
+
   return (
     <div ref={containerRef} className="absolute inset-0 overflow-hidden">
       <div
@@ -67,16 +161,10 @@ export function QuestScene({
           isChosen={chosenId === option.id}
           onChoose={() => onChoose(option)}
           label={t(option.shortLabelKey)}
-          position={
-            option.hotspot
-              ? hotspotPosition(
-                  cover,
-                  option.hotspot.x,
-                  option.hotspot.y,
-                  container,
-                )
-              : null
-          }
+          buttonRef={(el) => {
+            buttonRefs.current[option.id] = el;
+          }}
+          position={positionOf(option.id)}
         />
       ))}
     </div>
@@ -90,6 +178,7 @@ function Hotspot({
   isChosen,
   label,
   position,
+  buttonRef,
   onChoose,
 }: {
   option: QuestOption;
@@ -98,6 +187,7 @@ function Hotspot({
   isChosen: boolean;
   label: string;
   position: { left: number; top: number } | null;
+  buttonRef: (el: HTMLButtonElement | null) => void;
   onChoose: () => void;
 }) {
   if (!option.hotspot || !position) return null;
@@ -124,17 +214,18 @@ function Hotspot({
 
   return (
     <button
+      ref={buttonRef}
       type="button"
       onClick={onChoose}
       disabled={revealed || !interactionsEnabled}
       aria-pressed={isChosen}
       aria-label={label}
       style={{ left: position.left, top: position.top }}
-      className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 transition-opacity disabled:cursor-default"
+      className="absolute z-20 flex w-max -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 transition-opacity disabled:cursor-default"
     >
       <span className={`h-4 w-4 rounded-full ring-2 ring-navy-950/60 ${dot}`} />
       <span
-        className={`whitespace-nowrap rounded-md border px-2.5 py-1 text-xs font-semibold leading-none backdrop-blur-sm transition sm:text-sm ${tone}`}
+        className={`w-max max-w-[11.5rem] whitespace-normal text-center rounded-md border px-2.5 py-1 text-xs font-semibold leading-tight sm:max-w-none sm:whitespace-nowrap sm:leading-none backdrop-blur-sm transition sm:text-sm ${tone}`}
       >
         {label}
       </span>

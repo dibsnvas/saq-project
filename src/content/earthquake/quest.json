@@ -269,8 +269,8 @@
           "correct": true,
           "shortLabelKey": "quest.room.car.option.stop_open.short",
           "hotspot": {
-            "x": 33,
-            "y": 60
+            "x": 42,
+            "y": 78
           }
         },
         {
@@ -280,8 +280,8 @@
           "correct": false,
           "shortLabelKey": "quest.room.car.option.jump_out.short",
           "hotspot": {
-            "x": 12,
-            "y": 57
+            "x": 8,
+            "y": 45
           }
         }
       ],
