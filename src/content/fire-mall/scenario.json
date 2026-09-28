@@ -68,7 +68,8 @@
         "height": 66
       },
       "event": "pushed_through_crowd",
-      "once": true
+      "once": true,
+      "dwellMs": 900
     },
     {
       "id": "calm_lane",

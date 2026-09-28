@@ -44,6 +44,8 @@ export class ScenarioEngine {
   private activeRoom = "";
   /** зоны, внутри которых игрок находился в прошлом кадре (для once=false) */
   private inside = new Set<string>();
+  /** сколько мс игрок уже в зоне (для зон с dwellMs) */
+  private dwell = new Map<string, number>();
 
   constructor(
     private scene: Phaser.Scene,
@@ -104,7 +106,7 @@ export class ScenarioEngine {
   }
 
   /** Опрос позиции игрока; вызывается из update() сцены. */
-  update(playerX: number, playerY: number): void {
+  update(playerX: number, playerY: number, delta = 0): void {
     if (this.completed || this.finishing) return;
     for (const zone of this.scenario.zones) {
       if (zone.room !== this.activeRoom) continue;
@@ -115,11 +117,23 @@ export class ScenarioEngine {
         playerY >= rect.y &&
         playerY <= rect.y + rect.height;
 
-      if (contains && !this.inside.has(zone.id)) {
+      if (!contains) {
+        this.inside.delete(zone.id);
+        this.dwell.delete(zone.id);
+        continue;
+      }
+      // Зона с порогом: событие только если игрок задержался внутри.
+      if (zone.dwellMs) {
+        const spent = (this.dwell.get(zone.id) ?? 0) + delta;
+        this.dwell.set(zone.id, spent);
+        if (spent < zone.dwellMs || this.inside.has(zone.id)) continue;
         this.inside.add(zone.id);
         this.onZoneEnter(zone);
-      } else if (!contains) {
-        this.inside.delete(zone.id);
+        continue;
+      }
+      if (!this.inside.has(zone.id)) {
+        this.inside.add(zone.id);
+        this.onZoneEnter(zone);
       }
     }
   }

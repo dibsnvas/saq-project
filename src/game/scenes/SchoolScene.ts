@@ -341,7 +341,7 @@ export class SchoolScene extends Phaser.Scene {
     if (this.inputController.consumeInteract()) {
       this.interactions.tryInteract();
     }
-    this.engine.update(this.player.x, this.player.y);
+    this.engine.update(this.player.x, this.player.y, delta);
     this.crowd.update(this.player.x, this.player.y);
     this.minimap.update(this.layout, this.player.x, this.player.y, delta);
     this.updatePerspectiveDebug();

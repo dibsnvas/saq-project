@@ -21,6 +21,8 @@ export const triggerZoneSchema = z.object({
   event: z.string().optional(),
   /** зона срабатывает один раз (по умолчанию) или каждый вход */
   once: z.boolean().default(true),
+  /** сколько мс нужно пробыть в зоне: случайное касание края не считается */
+  dwellMs: z.number().nonnegative().optional(),
 });
 
 export const eventDefinitionSchema = z.object({

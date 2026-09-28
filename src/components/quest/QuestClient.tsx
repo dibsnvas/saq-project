@@ -25,6 +25,7 @@ import { RoomIcon } from "./RoomIcon";
  */
 
 const TICK_MS = 100;
+const HOW_TO_SEEN_KEY = "saq.questHowToSeen";
 
 const GRADE_STYLE: Record<QuestGrade, string> = {
   strong: "text-safe",
@@ -61,6 +62,8 @@ export function QuestClient({ questId }: { questId: QuestId }) {
   const [secondsLeft, setSecondsLeft] = useState(QUEST.decisionSeconds);
   const [answers, setAnswers] = useState<QuestAnswer[]>([]);
   const [durationMs, setDurationMs] = useState(0);
+  /** Короткая инструкция перед первой комнатой: показываем один раз. */
+  const [showHowTo, setShowHowTo] = useState(false);
   const startedAt = useRef(0);
 
   const locale = useLocale();
@@ -79,6 +82,21 @@ export function QuestClient({ questId }: { questId: QuestId }) {
   // а не по кнопке заставки.
   useEffect(() => {
     startedAt.current = Date.now();
+    try {
+      setShowHowTo(window.localStorage.getItem(HOW_TO_SEEN_KEY) !== "1");
+    } catch {
+      setShowHowTo(true); // приватный режим — покажем инструкцию всё равно
+    }
+  }, []);
+
+  const closeHowTo = useCallback(() => {
+    setShowHowTo(false);
+    startedAt.current = Date.now();
+    try {
+      window.localStorage.setItem(HOW_TO_SEEN_KEY, "1");
+    } catch {
+      /* приватный режим */
+    }
   }, []);
 
   const room = QUEST.rooms[index];
@@ -159,6 +177,14 @@ export function QuestClient({ questId }: { questId: QuestId }) {
     };
   }, [phase, beat, room.id, room.voice, locale]);
 
+  const stopNarration = useCallback(() => {
+    narrationRef.current?.pause();
+    if (speechRef.current) {
+      window.speechSynthesis.cancel();
+      speechRef.current = null;
+    }
+  }, []);
+
   const replayNarration = useCallback(() => {
     if (missingVoice === `${room.voice}.${locale}.mp3`) {
       if (
@@ -212,18 +238,17 @@ export function QuestClient({ questId }: { questId: QuestId }) {
   }, [room.id, room.voice, locale, questionText, missingVoice]);
 
   const startWithoutNarration = useCallback(() => {
-    narrationRef.current?.pause();
-    if (speechRef.current) {
-      window.speechSynthesis.cancel();
-      speechRef.current = null;
-    }
+    stopNarration();
     setNarration({ roomId: room.id, status: "done" });
-  }, [room.id]);
+  }, [room.id, stopNarration]);
 
   const answer = useCallback(
     (option: QuestOption | null) => {
       // Повторный клик не переписывает уже показанный разбор.
       if (outcome) return;
+      // Текст читается быстрее, чем звучит: ответ обрывает озвучку.
+      stopNarration();
+      setNarration({ roomId: room.id, status: "done" });
       setOutcome({ option });
       if (room.outcomes) setBeat("outcome");
       setAnswers((prev) => [
@@ -236,7 +261,7 @@ export function QuestClient({ questId }: { questId: QuestId }) {
         },
       ]);
     },
-    [outcome, room.id, room.outcomes],
+    [outcome, room.id, room.outcomes, stopNarration],
   );
 
   const next = useCallback(() => {
@@ -293,7 +318,14 @@ export function QuestClient({ questId }: { questId: QuestId }) {
       const img = new window.Image();
       img.src = src;
     }
-  }, [QUEST, phase, index]);
+    // Озвучка следующей комнаты: без прогрева звук отставал от картинки.
+    const nextVoice = QUEST.rooms[index + 1]?.voice;
+    if (nextVoice) {
+      const audio = new Audio(`${nextVoice}.${locale}.mp3`);
+      audio.preload = "auto";
+      audio.load();
+    }
+  }, [QUEST, phase, index, locale]);
 
   // Итог прохождения — в то же локальное хранилище, что и игра.
   // Персональные данные не сохраняются (см. TelemetryRepository).
@@ -451,6 +483,7 @@ export function QuestClient({ questId }: { questId: QuestId }) {
     // Полноэкранная раскладка: кадр занимает весь экран, интерфейс лежит
     // поверх него слоем, а не рамкой вокруг.
     <main className="fixed inset-0 overflow-hidden bg-black text-white">
+      {showHowTo && <HowToPlay onStart={closeHowTo} />}
       {beat === "intro" && room.intro && room.background ? (
         <QuestBeat
           key={`intro-${room.id}`}
@@ -480,7 +513,7 @@ export function QuestClient({ questId }: { questId: QuestId }) {
         <QuestScene
           room={room}
           outcome={outcome}
-          interactionsEnabled={narrationDone}
+          interactionsEnabled
           effect={QUEST.effect ?? "quake"}
           onChoose={(option) => answer(option)}
         />
@@ -489,7 +522,7 @@ export function QuestClient({ questId }: { questId: QuestId }) {
           <FallbackChoices
             room={room}
             outcome={outcome}
-            interactionsEnabled={narrationDone}
+            interactionsEnabled
             onChoose={answer}
           />
         </div>
@@ -582,7 +615,10 @@ export function QuestClient({ questId }: { questId: QuestId }) {
       {/* Вопрос отделён от нижней панели и поднят над сценой: крупный текст
           хорошо читается, но не закрывает хотспоты в нижней половине кадра. */}
       {beat === "scene" && (
-        <div className="quest-question-wrap pointer-events-none absolute inset-x-0 z-30 px-4 sm:px-6">
+        <div
+          data-quest-panel="top"
+          className="quest-question-wrap pointer-events-none absolute inset-x-0 z-30 px-4 sm:px-6"
+        >
           <section
             aria-labelledby="quest-question"
             className="quest-question-panel mx-auto max-w-4xl rounded-2xl border border-white/30 bg-navy-950/90 px-4 py-3.5 shadow-[0_12px_40px_rgba(0,0,0,0.45)] backdrop-blur-md sm:px-5 sm:py-4"
@@ -606,7 +642,7 @@ export function QuestClient({ questId }: { questId: QuestId }) {
 
             {narrationFailed && (
               <div
-                className="pointer-events-auto mt-3 flex flex-wrap items-center gap-2 border-t border-white/15 pt-3"
+                className="pointer-events-none mt-3 flex flex-wrap items-center gap-2 border-t border-white/15 pt-3"
                 role="status"
               >
                 <p className="mr-auto text-xs text-white/70 sm:text-sm">
@@ -615,14 +651,14 @@ export function QuestClient({ questId }: { questId: QuestId }) {
                 <button
                   type="button"
                   onClick={replayNarration}
-                  className="rounded-lg bg-white px-4 py-2 text-xs font-bold text-navy-950 transition hover:bg-white/90 sm:text-sm"
+                  className="pointer-events-auto rounded-lg bg-white px-4 py-2 text-xs font-bold text-navy-950 transition hover:bg-white/90 sm:text-sm"
                 >
                   {t("quest.playVoice")}
                 </button>
                 <button
                   type="button"
                   onClick={startWithoutNarration}
-                  className="rounded-lg border border-white/25 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
+                  className="pointer-events-auto rounded-lg border border-white/25 px-4 py-2 text-xs font-semibold text-white/80 transition hover:bg-white/10 sm:text-sm"
                 >
                   {t("quest.startWithoutVoice")}
                 </button>
@@ -633,7 +669,10 @@ export function QuestClient({ questId }: { questId: QuestId }) {
       )}
 
       {/* Нижний слой: событие, разбор и переход дальше */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-4 pt-16 sm:px-6 sm:pb-6">
+      <div
+        data-quest-panel="bottom"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-4 pt-16 sm:px-6 sm:pb-6"
+      >
         <div className="mx-auto w-full max-w-4xl space-y-3">
           {beat === "scene" && (
             <p className="text-sm leading-relaxed text-white/85 drop-shadow sm:text-base">
@@ -719,6 +758,40 @@ export function QuestClient({ questId }: { questId: QuestId }) {
         </div>
       </div>
     </main>
+  );
+}
+
+/** Короткая инструкция перед первой комнатой: как отвечать и сколько времени. */
+function HowToPlay({ onStart }: { onStart: () => void }) {
+  const t = useTranslations();
+  return (
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-navy-950/85 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-white/12 bg-navy-900/95 p-5 shadow-2xl sm:p-6">
+        <h2 className="text-lg font-bold sm:text-xl">
+          {t("quest.howTo.title")}
+        </h2>
+        <ol className="mt-4 space-y-3">
+          {["step1", "step2", "step3"].map((step, i) => (
+            <li
+              key={step}
+              className="flex gap-3 text-sm leading-relaxed text-white/85"
+            >
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white/70">
+                {i + 1}
+              </span>
+              {t(`quest.howTo.${step}`)}
+            </li>
+          ))}
+        </ol>
+        <button
+          type="button"
+          onClick={onStart}
+          className="mt-5 w-full rounded-lg bg-safe px-6 py-3 text-sm font-semibold text-white transition hover:brightness-110"
+        >
+          {t("quest.howTo.start")}
+        </button>
+      </div>
+    </div>
   );
 }
 

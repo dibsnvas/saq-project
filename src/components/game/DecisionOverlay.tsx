@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { eventBus } from "@/game/EventBus";
 import { useScenarioDefinition } from "./ScenarioContext";
@@ -30,12 +30,28 @@ export function DecisionOverlay({ onChosen }: { onChosen: () => void }) {
     }
   }, []);
 
-  const choose = (optionId: string) => {
-    if (chosen) return;
-    setChosen(true);
-    eventBus.emit("decision:choose", { optionId });
-    onChosen();
-  };
+  const choose = useCallback(
+    (optionId: string) => {
+      if (chosen) return;
+      setChosen(true);
+      eventBus.emit("decision:choose", { optionId });
+      onChosen();
+    },
+    [chosen, onChosen],
+  );
+
+  // Цифры 1–4: решение принимается с клавиатуры, без мыши.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const option = introDecision.options[Number(e.key) - 1];
+      if (option) {
+        e.preventDefault();
+        choose(option.id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [choose, introDecision.options]);
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-20 flex items-end justify-center bg-navy-950/35 pb-8 sm:items-center sm:pb-0">

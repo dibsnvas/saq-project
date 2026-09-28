@@ -655,7 +655,7 @@ const outdoor: RoomLayout = {
   hotspots: [
     {
       id: "report_teacher",
-      at: { x: 1000, y: 560 },
+      at: { x: 915, y: 548 },
       radius: 115,
       labelKey: "game.interact.reportTeacher",
       scenarioEvent: "reported_to_teacher",
@@ -667,7 +667,7 @@ const outdoor: RoomLayout = {
     {
       id: "assembly_crowd",
       textureKey: MALL_NPC_TEX.groupAssembly,
-      at: { x: 1110, y: 580 },
+      at: { x: 1185, y: 600 },
       role: "adult",
       figureFill: 0.95,
       behavior: { kind: "idle_sway" },
@@ -675,7 +675,7 @@ const outdoor: RoomLayout = {
     {
       id: "assembly_boy",
       textureKey: MALL_NPC_TEX.manIdle,
-      at: { x: 900, y: 602 },
+      at: { x: 770, y: 612 },
       role: "adult",
       figureFill: 0.97,
       behavior: { kind: "idle_sway" },
@@ -683,7 +683,7 @@ const outdoor: RoomLayout = {
     {
       id: "assembly_teacher",
       textureKey: MALL_NPC_TEX.guardIdle,
-      at: { x: 1000, y: 556 },
+      at: { x: 915, y: 546 },
       role: "adult",
       figureFill: 0.97,
       flipX: true,

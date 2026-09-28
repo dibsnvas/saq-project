@@ -3,7 +3,10 @@
   "objectiveKey": "game.objective",
   "durationSeconds": 180,
   "startRoom": "classroom",
-  "start": { "x": 620, "y": 645 },
+  "start": {
+    "x": 620,
+    "y": 645
+  },
   "introDecision": {
     "id": "first_reaction",
     "promptKey": "decision.title",
@@ -34,35 +37,61 @@
     {
       "id": "smoke_warning_zone",
       "room": "central_hall",
-      "rect": { "x": 240, "y": 430, "width": 400, "height": 110 },
+      "rect": {
+        "x": 240,
+        "y": 430,
+        "width": 400,
+        "height": 110
+      },
       "event": "smoke_detected",
       "once": true
     },
     {
       "id": "reentry_attempt",
       "room": "outdoor",
-      "rect": { "x": 40, "y": 560, "width": 130, "height": 140 },
+      "rect": {
+        "x": 40,
+        "y": 560,
+        "width": 130,
+        "height": 140
+      },
       "event": "attempted_reentry",
       "once": true
     },
     {
       "id": "crowd_squeeze",
       "room": "stairs",
-      "rect": { "x": 440, "y": 565, "width": 250, "height": 100 },
+      "rect": {
+        "x": 440,
+        "y": 565,
+        "width": 250,
+        "height": 100
+      },
       "event": "pushed_through_crowd",
-      "once": true
+      "once": true,
+      "dwellMs": 900
     },
     {
       "id": "calm_lane",
       "room": "stairs",
-      "rect": { "x": 740, "y": 632, "width": 320, "height": 70 },
+      "rect": {
+        "x": 740,
+        "y": 632,
+        "width": 320,
+        "height": 70
+      },
       "event": "took_calm_lane",
       "once": true
     },
     {
       "id": "assembly_point",
       "room": "outdoor",
-      "rect": { "x": 860, "y": 455, "width": 330, "height": 185 },
+      "rect": {
+        "x": 860,
+        "y": 455,
+        "width": 330,
+        "height": 185
+      },
       "event": "reached_assembly",
       "once": true
     }
@@ -202,5 +231,7 @@
       "severity": "danger"
     }
   },
-  "completionTriggers": ["reported_to_teacher"]
+  "completionTriggers": [
+    "reported_to_teacher"
+  ]
 }

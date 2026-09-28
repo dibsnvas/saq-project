@@ -21,6 +21,8 @@ export function MobileControls() {
   const [interaction, setInteraction] = useState<
     GameEventMap["interaction:available"] | null
   >(null);
+  /** Первые секунды подсказываем, чем двигаться: иначе джойстик не замечают. */
+  const [hintVisible, setHintVisible] = useState(true);
 
   useEffect(() => {
     const unsubscribes = [
@@ -37,6 +39,11 @@ export function MobileControls() {
     };
   }, []);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setHintVisible(false), 9000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const updateVector = (clientX: number, clientY: number) => {
     const base = baseRef.current;
     if (!base) return;
@@ -48,6 +55,7 @@ export function MobileControls() {
       dx = (dx / length) * MAX_OFFSET;
       dy = (dy / length) * MAX_OFFSET;
     }
+    setHintVisible(false);
     setKnob({ x: dx, y: dy });
     eventBus.emit("input:move", { x: dx / MAX_OFFSET, y: dy / MAX_OFFSET });
   };
@@ -60,6 +68,14 @@ export function MobileControls() {
 
   return (
     <>
+      {hintVisible && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-40 z-20 flex justify-center px-6">
+          <p className="rounded-xl border border-white/15 bg-navy-950/85 px-4 py-2 text-center text-sm text-white/90 shadow-lg backdrop-blur-sm">
+            {t("game.hint.touch")}
+          </p>
+        </div>
+      )}
+
       {/* Виртуальный джойстик */}
       <div
         ref={baseRef}

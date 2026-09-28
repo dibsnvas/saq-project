@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { eventBus, type GameEventMap } from "@/game/EventBus";
 
@@ -22,14 +22,31 @@ export function ChoiceOverlay() {
     });
   }, []);
 
-  if (!offer) return null;
+  const pick = useCallback(
+    (optionId: string) => {
+      if (chosen || !offer) return;
+      setChosen(true);
+      eventBus.emit("choice:resolve", { id: offer.id, optionId });
+      setOffer(null);
+    },
+    [chosen, offer],
+  );
 
-  const pick = (optionId: string) => {
-    if (chosen) return;
-    setChosen(true);
-    eventBus.emit("choice:resolve", { id: offer.id, optionId });
-    setOffer(null);
-  };
+  // Цифры 1–3: ответ с клавиатуры, чтобы не тянуться к мыши.
+  useEffect(() => {
+    if (!offer) return;
+    const onKey = (e: KeyboardEvent) => {
+      const option = offer.options[Number(e.key) - 1];
+      if (option) {
+        e.preventDefault();
+        pick(option.id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [offer, pick]);
+
+  if (!offer) return null;
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-20 flex items-end justify-center bg-navy-950/30 pb-8 sm:items-center sm:pb-0">

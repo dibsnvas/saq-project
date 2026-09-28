@@ -15,6 +15,39 @@ import { hotspotPosition, useCoverRect } from "./useCoverRect";
 /** Отступ подписи от края экрана и между подписями, px. */
 const EDGE_GAP = 8;
 
+/**
+ * Сверху шапка и панель вопроса, снизу плашка события и кнопка «дальше».
+ * Подпись, заехавшая под них, не читается — держим точки в средней полосе.
+ * Панели меряем по факту: их высота зависит от длины текста и экрана.
+ */
+function measuredSafeArea(container: { width: number; height: number }) {
+  let top = Math.min(container.height * 0.26, 190);
+  let bottom = container.height - Math.min(container.height * 0.28, 210);
+  if (typeof document !== "undefined") {
+    const panel = document.querySelector<HTMLElement>(
+      '[data-quest-panel="top"] .quest-question-panel',
+    );
+    if (panel)
+      top = Math.max(top, panel.getBoundingClientRect().bottom + EDGE_GAP);
+    const lower = document.querySelector<HTMLElement>(
+      '[data-quest-panel="bottom"]',
+    );
+    if (lower) {
+      // У нижнего слоя большой прозрачный градиент — считаем по содержимому.
+      const content = lower.firstElementChild as HTMLElement | null;
+      const rect = (content ?? lower).getBoundingClientRect();
+      bottom = Math.min(bottom, rect.top - EDGE_GAP);
+    }
+  }
+  // Полоса не должна схлопнуться на низком экране.
+  if (bottom - top < 90) {
+    const mid = (top + bottom) / 2;
+    top = Math.max(0, mid - 45);
+    bottom = Math.min(container.height, mid + 45);
+  }
+  return { top, bottom };
+}
+
 type Box = { left: number; top: number; width: number; height: number };
 
 /**
@@ -34,10 +67,11 @@ export function layoutHotspots(
         container.width - b.width / 2 - EDGE_GAP,
       ),
     );
+  const area = measuredSafeArea(container);
   const clampY = (top: number, h: number) =>
     Math.min(
-      Math.max(top, h / 2 + EDGE_GAP),
-      Math.max(h / 2 + EDGE_GAP, container.height - h / 2 - EDGE_GAP),
+      Math.max(top, area.top + h / 2),
+      Math.max(area.top + h / 2, area.bottom - h / 2),
     );
   const placed = items.map((b) => ({
     ...b,
@@ -47,25 +81,54 @@ export function layoutHotspots(
   const order = placed
     .map((_, i) => i)
     .sort((a, b) => placed[a].top - placed[b].top);
+
+  const clampLeft = (b: Box, left: number) =>
+    Math.min(
+      Math.max(left, b.width / 2 + EDGE_GAP),
+      Math.max(
+        b.width / 2 + EDGE_GAP,
+        container.width - b.width / 2 - EDGE_GAP,
+      ),
+    );
+  const collide = (a: Box, b: Box) =>
+    Math.abs(a.left - b.left) < (a.width + b.width) / 2 + EDGE_GAP &&
+    Math.abs(a.top - b.top) < (a.height + b.height) / 2 + EDGE_GAP;
+
+  // Разводим по вертикали; если стопка упёрлась в низ — поднимаем и повторяем.
+  for (let pass = 0; pass < 3; pass += 1) {
+    for (let k = 1; k < order.length; k += 1) {
+      const cur = placed[order[k]];
+      for (let j = 0; j < k; j += 1) {
+        const prev = placed[order[j]];
+        const minDy = (cur.height + prev.height) / 2 + EDGE_GAP;
+        const overlapX =
+          Math.abs(cur.left - prev.left) <
+          (cur.width + prev.width) / 2 + EDGE_GAP;
+        if (overlapX && cur.top - prev.top < minDy) cur.top = prev.top + minDy;
+      }
+    }
+    const last = placed[order[order.length - 1]];
+    const overflow = last ? last.top + last.height / 2 - area.bottom : 0;
+    if (overflow <= 0) break;
+    for (const b of placed) b.top = clampY(b.top - overflow, b.height);
+  }
+
+  // Полоса узкая (телефон лёжа) — по вертикали места нет: разводим вбок.
   for (let k = 1; k < order.length; k += 1) {
     const cur = placed[order[k]];
     for (let j = 0; j < k; j += 1) {
       const prev = placed[order[j]];
-      const overlapX =
-        Math.abs(cur.left - prev.left) <
-        (cur.width + prev.width) / 2 + EDGE_GAP;
-      const minDy = (cur.height + prev.height) / 2 + EDGE_GAP;
-      if (overlapX && cur.top - prev.top < minDy) cur.top = prev.top + minDy;
+      if (!collide(cur, prev)) continue;
+      const dx = (cur.width + prev.width) / 2 + EDGE_GAP;
+      const toRight = cur.left >= prev.left;
+      cur.left = clampLeft(cur, toRight ? prev.left + dx : prev.left - dx);
+      // У края места не хватило — уводим в другую сторону.
+      if (collide(cur, prev)) {
+        cur.left = clampLeft(cur, toRight ? prev.left - dx : prev.left + dx);
+      }
     }
   }
-  // Упёрлись в низ экрана — сдвигаем всю стопку вверх.
-  const last = placed[order[order.length - 1]];
-  if (last) {
-    const overflow = last.top + last.height / 2 + EDGE_GAP - container.height;
-    if (overflow > 0) {
-      for (const b of placed) b.top = clampY(b.top - overflow, b.height);
-    }
-  }
+
   return placed.map(({ left, top }) => ({ left, top }));
 }
 
@@ -104,6 +167,15 @@ export function QuestScene({
   const [sizes, setSizes] = useState<Record<string, { w: number; h: number }>>(
     {},
   );
+  /** Панели вопроса и события меняют высоту (кнопка озвучки, длинный текст). */
+  const [panelTick, setPanelTick] = useState(0);
+  useLayoutEffect(() => {
+    const panels = document.querySelectorAll<HTMLElement>("[data-quest-panel]");
+    if (!panels.length) return;
+    const observer = new ResizeObserver(() => setPanelTick((n) => n + 1));
+    panels.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [room.id]);
   const labelsKey = room.options
     .map((o) => `${o.id}:${t(o.shortLabelKey)}`)
     .join("|");
@@ -116,7 +188,7 @@ export function QuestScene({
     setSizes((prev) =>
       JSON.stringify(prev) === JSON.stringify(next) ? prev : next,
     );
-  }, [labelsKey, container.width, container.height, room.options]);
+  }, [labelsKey, container.width, container.height, room.options, panelTick]);
 
   const withHotspot = room.options.filter((o) => o.hotspot);
   const raw = withHotspot.map((o) => {
